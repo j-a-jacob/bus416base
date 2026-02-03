@@ -1,0 +1,209 @@
+---
+title: "01-02-functions-intro"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+### Why Functions?
+
+Functions allow us to:
+- avoid repeating code
+- make programs easier to read
+- break complex problems into smaller pieces
+- reuse logic across projects
+
+At a high level, a function:
+- takes **inputs**
+- performs **operations**
+- returns **output**
+
+---
+
+### A Very Simple Function
+
+Let’s start with the simplest possible function.
+
+```{r}
+add_two_numbers <- function(x, y) {
+  x + y
+}
+```
+
+```{r}
+add_two_numbers(2, 3)
+```
+
+This function:
+- takes two inputs: `x` and `y`
+- returns their sum
+
+---
+
+### Function Inputs and Outputs
+
+Functions can take any number of inputs.
+
+```{r}
+square_number <- function(x) {
+  x^2
+}
+```
+
+```{r}
+square_number(4)
+```
+
+#### Student practice
+
+```{r exercise-square}
+#| eval: false
+# Write a function that cubes a number
+cube_number <- function(x) {
+  ___
+}
+
+cube_number(___)
+```
+
+---
+
+### Default Arguments
+
+Functions can also have **default values**.
+
+```{r}
+power <- function(x, p = 2) {
+  x^p
+}
+```
+
+```{r}
+power(3)
+power(3, 3)
+```
+
+This allows flexibility while keeping sensible defaults.
+
+#### Student practice
+
+```{r exercise-default_arg}
+#| eval: false
+# Modify the function so the default power is 3
+power <- function(x, p = ___) {
+  x^p
+}
+
+power(2)
+power(2, 4)
+```
+
+---
+
+### Returning Values Explicitly
+
+R automatically returns the last expression, but we can also use `return()`.
+
+```{r}
+absolute_difference <- function(x, y) {
+  diff <- x - y
+  return(abs(diff))
+}
+```
+
+```{r}
+absolute_difference(10, 3)
+```
+
+---
+
+### Functions Inside Functions
+
+Functions can call other functions.
+
+```{r}
+mean_of_squares <- function(x) {
+  squares <- x^2
+  mean(squares)
+}
+```
+
+```{r}
+mean_of_squares(c(1, 2, 3, 4))
+```
+
+#### Student practice
+
+```{r exercise-nested_function}
+#| eval: false
+# Write a function that returns the mean of cubed values
+mean_of_cubes <- function(x) {
+  ___
+}
+
+mean_of_cubes(c(1, 2, 3))
+```
+
+---
+
+### Writing Cleaner Code with Functions
+
+Functions help keep your analysis clean and readable.
+
+```{r}
+calculate_growth_rate <- function(start, end) {
+  (end - start) / start
+}
+```
+
+```{r}
+calculate_growth_rate(100, 125)
+```
+
+This pattern becomes especially important as projects grow.
+
+---
+
+### Common Mistakes with Functions
+
+A few things to watch out for:
+- forgetting to return a value
+- using variables that exist outside the function
+- mismatching argument names
+
+```{r}
+bad_function <- function(x) {
+  y <- x + 2
+}
+```
+
+```{r}
+bad_function(5)
+```
+
+Notice that this function does not return anything useful.
+
+#### Student practice
+
+```{r exercise-fix_function}
+#| eval: false
+# Fix the function so it returns a value
+fixed_function <- function(x) {
+  y <- x + 2
+  ___
+}
+
+fixed_function(5)
+```
+
+---
+
+### Key Takeaways
+
+- Functions encapsulate logic
+- Inputs go inside parentheses
+- Code lives inside `{ }`
+- Functions return values
+- Writing functions early saves time later
+
+We will build on this idea extensively throughout the course.
