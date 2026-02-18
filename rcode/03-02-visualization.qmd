@@ -14,11 +14,11 @@ In this unit, we recreate and extend the figures from Chapter 3 using the **ggpl
 
 The goal is not just to reproduce charts, but to understand:
 
-* *why* a specific chart is appropriate,
-* *what patterns* it reveals,
-* and *how visualization supports modeling decisions later*.
+-   *why* a specific chart is appropriate,
+-   *what patterns* it reveals,
+-   and *how visualization supports modeling decisions later*.
 
----
+------------------------------------------------------------------------
 
 ## Load required packages
 
@@ -28,182 +28,209 @@ The goal is not just to reproduce charts, but to understand:
 library(tidyverse)
 library(ggthemes)
 library(patchwork)
-library(forecast)
 library(caret)
-library(treemapify)
-library(treemap)
 library(GGally)
 library(ggcorrplot)
-library(readr)
 library(skimr)
-library(tsibble)
-library(fable)
-library(lubridate)
-library(feasts)
 library(mlbadata)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Load datasets
 
 ```{r, echo = FALSE}
-housing.df <- read_csv("../BostonHousing.csv")
 
-amtrak.df <- as_tibble(mlbadata::Amtrak)
+mpg.df <- as_tibble(mpg)
+housing.df <- as_tibble(mlbadata::BostonHousing)
 bank.df <- as_tibble(mlbadata::UniversalBank)
 utilities.df <- as_tibble(mlbadata::Utilities)
-ebay.df <- as_tibble(mlbadata::eBayTreemap)
 
-glimpse(amtrak.df)
 ```
 
----
+------------------------------------------------------------------------
 
-## 1. Time Series Visualization
+## 1. Univariate data- density and bar plots
 
-Time series plots are essential for identifying:
+### x-var is continuous
 
-* trends
-* seasonality
-* structural breaks
-
-### Preparing the Amtrak data
+### Histogram
 
 ```{r}
-amtrak.df1 <- amtrak.df |> 
-  mutate(Month = dmy(Month))
+g1 <- mpg.df |> 
+  ggplot(aes(x = hwy)) +
+  geom_histogram(binwidth = 4)
+g1
 ```
 
-At this stage, the data is a **date**, but not yet a proper monthly time index.
+### Frequency Polygon
+
+Frequency polygon is another visual to capture distribution. It creates histrograms and then uses a line to join the mid-points of the bins.
 
 ```{r}
-amtrak.ts <- amtrak.df1 |> 
-  mutate(yrMth = yearmonth(Month)) |> 
-  select(-Month) |> 
-  as_tsibble(index = yrMth)
-
-glimpse(amtrak.ts)
+mpg.df |> 
+  ggplot(aes(x = hwy)) +
+  geom_freqpoly(binwidth = 4)
 ```
 
-> **Why this matters:**
-> tsibble objects explicitly encode time structure, which unlocks specialized plotting and modeling tools.
-
----
-
-### Basic time series plot
+Works better if we want to compare across different categorical variables.
 
 ```{r}
-autoplot(amtrak.ts) +
-  labs(title = "Amtrak Monthly Ridership",
-       y = "Passengers (000s)")
+mpg.df |> 
+  ggplot(aes(x = hwy, color = drv)) +
+  geom_freqpoly(binwidth = 4)
 ```
 
-Notice:
+### Density Plot
 
-* overall upward/downward movement
-* repeating seasonal patterns
-
----
-
-### Seasonal and subseries plots
+If we want to obtain a density curve, we can use the `geom_density()` function.
 
 ```{r}
-amtrak.ts |> 
-  gg_season() +
-  labs(title = "Seasonal Patterns in Monthly Ridership")
+mpg.df |> 
+  ggplot(aes(x = hwy)) +
+  geom_density() +
+  labs(title = "Distribution of Highway MPG")
 
-amtrak.ts |> 
-  gg_subseries() +
-  labs(title = "Monthly Subseries Plots")
+
 ```
 
-These plots isolate **within-year seasonality**, which is critical for forecasting.
+> **Interpretation tip:** Histograms/frequency polygons emphasize *counts*; densities emphasize *shape*.
 
----
+### x-var is discrete.
 
-### Zooming in on specific periods
+A bar chart shows the count.
 
 ```{r}
-amtrak.ts |> 
-  filter(year(yrMth) == 1996) |> 
-  autoplot()
+g2 <- mpg.df |> 
+  ggplot(aes(x = class)) +
+  geom_bar() +
+  labs(title = "Number of Cars by Class")
+
+g2
 ```
 
----
+## Bivariate Plots
 
-### Aggregating time series
-
-Instead of `group_by()`, tsibbles use `index_by()`.
+A scatter chart with colors based on a categorical variables:
 
 ```{r}
-amtrak.ts |> 
-  index_by(yr = year(yrMth)) |> 
-  summarize(avg_rides = mean(Ridership)) |> 
-  autoplot(avg_rides) +
-  labs(y = "Average Annual Ridership")
+g3 <- mpg.df |> 
+  ggplot(aes(x = cyl, y = hwy)) +
+  geom_point() +
+  labs(title = "Highway MPG vs Cylinders")
+
+g3
 ```
+
+The above looks strange as a lot of points are getting overlaid on top of each other. This can be fixed by assigning some randomness to the values. Let us also add color for `drv`.
 
 ```{r}
-amtrak.ts |> 
-  index_by(yr = year(yrMth)) |> 
-  summarize(total_rides = sum(Ridership)) |> 
-  filter(yr != 2004) |> 
-  autoplot(total_rides) +
-  labs(y = "Total Annual Ridership") +
-  scale_x_continuous(breaks = scales::extended_breaks(12)) +
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.5))
+g3 <- mpg.df |> 
+  ggplot(aes(x = cyl, y = hwy, color = drv)) +
+  geom_jitter() +
+  labs(title = "Highway MPG vs Cylinders")
+
+g3
 ```
 
----
+Jittering helps reduce overplotting when many points share the same value.
 
-### Student exercise: time series insight
+------------------------------------------------------------------------
+
+### Student exercise: alternative plots
 
 ```{r}
 #| eval: false
-# Identify one clear seasonal pattern
-# and one long-term trend from the Amtrak plots
+# Create:
+# 1. A bar chart of drv
+# 2. A density plot of cty
 ```
 
----
+------------------------------------------------------------------------
+
+## Combining plots
+
+Multiple plots can be combined using `patchwork`.
+
+```{r}
+library(patchwork)
+
+(g1 + g2) / g3
+```
+
+This is useful for dashboards and comparative storytelling.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
 
 ## 2. Cross-Sectional Visualization
 
 Cross-sectional plots help us compare groups and distributions at a single point in time.
 
----
+------------------------------------------------------------------------
 
 ### Bar plots for categorical comparisons
 
 ```{r}
 housing.df |>
-  group_by(CHAS, CAT_MEDV) |> 
+  group_by(CHAS, CAT.MEDV) |> 
+  summarise(count = n())
+
+housing.df |>
+  mutate(across(c(CHAS, CAT.MEDV), as.factor)) |> 
+  group_by(CHAS, CAT.MEDV) |> 
   summarise(count = n())
 ```
 
+Here, we have two factor variables. Suppose we want to see a bar chart representing the count of neighborhoods bordering and not bordering Charles River with median home values being above or below a threshold (below = 0 or above = 1)
+
 ```{r}
 housing.df |>
-  group_by(CHAS, CAT_MEDV) |> 
-  summarise(count = n()) |> 
-  ggplot(aes(x = factor(CHAS))) +
-  geom_bar(aes(y = count, fill = factor(CAT_MEDV)),
-           stat = "identity")
+  mutate(across(c(CHAS, CAT.MEDV), as.factor)) |> 
+  ggplot(aes(CHAS, fill= CAT.MEDV)) +
+  geom_bar()
+
+
+
 ```
 
-Try:
+This is a stacked bar chart. The default aesthetic is "stack"
 
-* stacked bars → composition
-* filled bars → proportions
-* dodged bars → comparison
+-   stacked bars → composition Try:
 
----
+-   filled bars → proportions
+
+-   dodged bars → comparison
+
+```{r}
+
+housing.df |>
+  mutate(across(c(CHAS, CAT.MEDV), as.factor)) |> 
+  ggplot(aes(CHAS, fill= CAT.MEDV)) +
+  geom_bar(position = "fill")
+
+
+```
+
+```{r}
+
+housing.df |>
+  mutate(across(c(CHAS, CAT.MEDV), as.factor)) |> 
+  ggplot(aes(CHAS, fill= CAT.MEDV)) +
+  geom_bar(position = "dodge")
+
+
+```
+
+------------------------------------------------------------------------
 
 ### Density vs histogram
 
 ```{r}
 s1 <- housing.df |> 
   ggplot(aes(x = MEDV)) +
-  geom_density(aes(color = factor(CHAS)))
+  geom_density(aes(fill = factor(CHAS)), alpha = 0.3)
 
 s2 <- housing.df |> 
   ggplot(aes(x = MEDV)) +
@@ -214,23 +241,33 @@ s2 <- housing.df |>
 s1 / s2
 ```
 
-> **Interpretation tip:**
-> Histograms emphasize *counts*; densities emphasize *shape*.
-
----
-
 ### Combining density and histogram correctly
+
+Suppose we want to combine the density plot and the histogram in the same chart. The first thought is to add them as layers.
 
 ```{r}
 housing.df |> 
-  ggplot(aes(x = MEDV, y = after_stat(density))) +
-  geom_histogram(aes(fill = factor(CHAS)), alpha = 0.25) +
-  geom_density(aes(color = factor(CHAS)), size = 1)
+  ggplot(aes(x = MEDV)) +
+  geom_histogram(aes(fill = factor(CHAS)), alpha = 0.3) +
+  geom_density(aes(fill = factor(CHAS)), alpha = 0.3)
 ```
 
----
+The density plot comes as a flat line. Why? Because of the difference in scales.
+
+Instead, we can tell ggplot that the histogram y axis should be scaled to density. Then the histogram and density will have the same scale.
+
+```{r}
+housing.df |> 
+  ggplot(aes(x = MEDV)) +
+  geom_histogram(aes(fill = factor(CHAS), y = after_stat(density)), alpha = 0.25) +
+  geom_density(aes(color = factor(CHAS)), size = 1) 
+```
+
+*We didn't have to modify the aesthetics of density as it was already scaled correctly.*
 
 ### Box plots
+
+X $\rightarrow$ discrete & Y $\rightarrow$ continuous
 
 ```{r}
 housing.df |> 
@@ -241,11 +278,11 @@ housing.df |>
 
 Box plots quickly reveal:
 
-* median shifts
-* spread
-* outliers
+-   median shifts
+-   spread
+-   outliers
 
----
+------------------------------------------------------------------------
 
 ## 3. Multivariate Visualization
 
@@ -267,10 +304,9 @@ cor.tidy |>
   theme(axis.text.x = element_text(angle = 90))
 ```
 
-> **Why this matters:**
-> Correlation plots guide feature selection and multicollinearity checks.
+> **Why this matters:** Correlation plots guide feature selection and multicollinearity checks.
 
----
+------------------------------------------------------------------------
 
 ### Scatter plots with transformations
 
@@ -290,7 +326,7 @@ gg8 <- housing.df |>
 gg7 + gg8
 ```
 
----
+------------------------------------------------------------------------
 
 ### Labeling points
 
@@ -301,7 +337,7 @@ utilities.df |>
   geom_text(nudge_x = 0.02, size = 2)
 ```
 
----
+------------------------------------------------------------------------
 
 ### Overplotting and jitter
 
@@ -318,55 +354,31 @@ bank.df |>
   scale_y_log10()
 ```
 
----
+------------------------------------------------------------------------
 
 ### Parallel coordinate plots
 
 ```{r}
 housing.df |>
-  mutate(CAT_MEDV = factor(CAT_MEDV)) |> 
+  mutate(CAT.MEDV = factor(CAT.MEDV)) |> 
   ggparcoord(columns = 1:13,
              groupColumn = 14,
              scale = "uniminmax")
 ```
 
----
+------------------------------------------------------------------------
 
-### Treemaps: parts of a whole
-
-```{r}
-ebay.df$negative.feedback <- 1 * (ebay.df$Seller.Feedback < 0)
-
-ebay.tm <- ebay.df |>
-  group_by(Category, Sub.Category, Brand) |>
-  summarise(
-    Avg_HighBid = mean(High.Bid, na.rm = TRUE),
-    Avg_NegFeedback = mean(negative.feedback, na.rm = TRUE)
-  )
-```
-
-```{r}
-ebay.tm |> 
-  ggplot(aes(area = Avg_HighBid,
-             fill = Avg_NegFeedback,
-             label = Category,
-             subgroup = Sub.Category,
-             subgroup2 = Brand)) +
-  geom_treemap() +
-  geom_treemap_text(color = "white", grow = TRUE) +
-  scale_fill_viridis_c()
-```
-
----
 
 ## Key takeaways
 
-* Visualization is **analysis**, not decoration
-* Different plots answer different questions
-* Visuals guide:
+-   Visualization is **analysis**, not decoration
 
-  * feature engineering
-  * transformations
-  * model choice
-* Always ask: *What decision does this plot support?*
+-   Different plots answer different questions
 
+-   Visuals guide:
+
+    -   feature engineering
+    -   transformations
+    -   model choice
+
+-   Always ask: *What decision does this plot support?*
