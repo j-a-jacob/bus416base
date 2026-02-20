@@ -92,7 +92,7 @@ df1 <- housing.df[, selected.vars]
 
 ## Using a loop to generate multiple plots
 
-The following loop creates **one density plot per variable**, colored by `CHAS`.
+The following loop creates **one density plot per variable**, colored by `CHAS`. In the code below, indexing is a bit confusing. In the for loop, we want 3rd to the last cloumn. So, i starts from and ends with the number of columns.
 
 ```{r}
 for (i in 3:ncol(df1)) {
@@ -133,6 +133,8 @@ To view multiple plots at once, we need to:
 1. Store plots in a list
 2. Arrange them using `wrap_plots()`
 
+One way, which I do not prefer, to do this is using a `for` loop. In this process, we initialize and empty list, create plots one by one, populate the plots in the list and then arrange arrange all of these plots to be viewed on the same page. 
+
 ### Step 1: initialize an empty list
 
 ```{r}
@@ -164,6 +166,15 @@ The loop above works well, but R also provides **functional programming tools** 
 
 Here, we use `map()` to achieve the same result.
 
+### How this works
+Recall `02-05-functional` code file. `map()` applies the specified function across all the elements. So, the input on which `map()` will act, is a list of column names. The function that we are applying is to basically insert the data corresponding to that column's name at the x axis of `ggplot`. Where does ggplot look for data? `.data`is a tidyverse pronoun that refers to the data being used in the function. Thus the workflow is:
+
+* `map()` iterates over column names
+* `.data[[col_name]]` safely extracts the column by name from the dataframe passed to ggplot (here, df1)
+* Each iteration returns a ggplot object
+* The result is a **list of plots**. This is because `map()` returns a list.
+
+
 ```{r}
 plot_list2 <- map(
   names(df1[3:ncol(df1)]),
@@ -177,12 +188,20 @@ plot_list2 <- map(
 wrap_plots(plot_list2, ncol = 2)
 ```
 
-### How this works
+```{r}
+plot_list2 <- map(
+  names(df1[3:ncol(df1)]),
+  function(col_name) {
+    ggplot(df1, aes(x = .data[[col_name]], color = CHAS)) +
+      geom_histogram(aes(y = after_stat(density)), alpha = 0.3) +
+      geom_density()+
+      labs(x = col_name)
+  }
+)
 
-* `map()` iterates over column names
-* `.data[[col_name]]` safely extracts the column by name
-* Each iteration returns a ggplot object
-* The result is a **list of plots**
+wrap_plots(plot_list2, ncol = 2)
+```
+
 
 This approach is:
 
@@ -238,7 +257,7 @@ plot_list4 <- map(
   names(df1[3:ncol(df1)]),
   function(col_name) {
     ggplot(df1, aes(x = .data[[col_name]], y = MEDV)) +
-      geom_point(aes(color = CHAS)) +
+      geom_point(aes(color = CHAS), alpha = 0.3) +
       geom_smooth(method = "lm", se = FALSE) +
       labs(x = col_name)
   }

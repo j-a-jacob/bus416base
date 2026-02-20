@@ -81,7 +81,7 @@ Each column is passed to `mean()` one at a time.
 
 ## Understanding `map_*()` variants
 
-The base `map()` always returns a **list**. Variants control the output type.
+The base `map()` always returns a **list**. We can choose the output using one of the variants.
 
 | Function    | Output type      |
 |-------------|------------------|
@@ -140,11 +140,22 @@ roxbury_df |>
   map_chr(typeof)
 ```
 
+To see the above list as a column vector to make it easy to read:
+
+```{r}
+roxbury_df |> 
+  map_chr(typeof) |> 
+  t() |> 
+  t()
+```
+
+The first `t()` makes the vector into a `1xp` row vector and the next `t()` transposes it to a `px1` column vector.
+
 This shows the **low-level storage type** of each column.
 
 ```{r}
 roxbury_df |> 
-  map_chr(class)
+  map_chr(class) 
 ```
 
 ------------------------------------------------------------------------
@@ -179,6 +190,8 @@ Here:
 -   `~` defines an anonymous function
 
 ------------------------------------------------------------------------
+
+Later on, we will see how a function can be applied within `map()` to create multiple charts looping over selected columns in a dataset.
 
 ### Student exercise: anonymous functions
 
@@ -257,6 +270,8 @@ Here, functional programming allows us to **inject arguments** cleanly.
 ```{r}
 #| eval: false
 # Group roxbury_df by REMODEL
-# Compute mean and sd for variables containing "VALUE"
+# Compute mean and sd for variables containing "BATH"
 # Ensure missing values are handled correctly
 ```
+
+### 
