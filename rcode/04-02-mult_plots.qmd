@@ -188,19 +188,6 @@ plot_list2 <- map(
 wrap_plots(plot_list2, ncol = 2)
 ```
 
-```{r}
-plot_list2 <- map(
-  names(df1[3:ncol(df1)]),
-  function(col_name) {
-    ggplot(df1, aes(x = .data[[col_name]], color = CHAS)) +
-      geom_histogram(aes(y = after_stat(density)), alpha = 0.3) +
-      geom_density()+
-      labs(x = col_name)
-  }
-)
-
-wrap_plots(plot_list2, ncol = 2)
-```
 
 
 This approach is:
@@ -218,6 +205,24 @@ This approach is:
 # Modify the map() version to:
 # 1. Use geom_histogram()
 # 2. Change color to fill
+```
+
+
+Let's now combine density and histogram. We will add some transparancy to the histogram.
+
+
+```{r}
+plot_list2 <- map(
+  names(df1[3:ncol(df1)]),
+  function(col_name) {
+    ggplot(df1, aes(x = .data[[col_name]], color = CHAS)) +
+      geom_histogram(aes(y = after_stat(density)), alpha = 0.3) +
+      geom_density()+
+      labs(x = col_name)
+  }
+)
+
+wrap_plots(plot_list2, ncol = 2)
 ```
 
 ---
