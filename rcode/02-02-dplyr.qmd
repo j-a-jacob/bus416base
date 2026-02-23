@@ -1,20 +1,27 @@
-
 ---
 title: "02-02-datatransf"
 output: html_document
+editor: 
+  markdown: 
+    wrap: 72
 ---
 
 ## Intro to `tidyverse()` and `dplyr()`
 
-`dplyr()` is a very powerful data management and transformation package which works upon *tidy data* with the following set of verbs and functions:
+`dplyr()` is a very powerful data management and transformation package
+which works upon *tidy data* with the following set of verbs and
+functions:
 
 -   Pick observations by their values (`filter()`).
 -   Reorder the rows (`arrange()`).
 -   Pick variables by their names (`select()`).
--   Create new variables with functions of existing variables (`mutate()`).
+-   Create new variables with functions of existing variables
+    (`mutate()`).
 -   Collapse many values down to a single summary (`summarise()`).
 
-These can all be used in conjunction with `group_by()` which changes the scope of each function from operating on the entire dataset to operating on it group-by-group.
+These can all be used in conjunction with `group_by()` which changes the
+scope of each function from operating on the entire dataset to operating
+on it group-by-group.
 
 ## Basic data operations with `dplyr()`
 
@@ -32,7 +39,7 @@ str(life_expt)
 skim(life_expt)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Pick observations based on row values — `filter()`
 
@@ -57,7 +64,7 @@ life_expt |>
 # continent is either Europe or Americas
 ```
 
----
+------------------------------------------------------------------------
 
 ## Reorder rows — `arrange()`
 
@@ -72,6 +79,10 @@ life_expt |>
   arrange(continent, desc(lifeExp))
 ```
 
+`%in%` is called the membership operator. It is used for filtering and
+logical subsetting. It checks if the elements of the left vector exist
+anywhere in the right vector. It returns a logical vector (TRUE/FALSE).
+
 ### Student exercise: `arrange()`
 
 ```{r}
@@ -81,7 +92,7 @@ life_expt |>
 # Arrange by lifeExp from highest to lowest
 ```
 
----
+------------------------------------------------------------------------
 
 ## Pipes (`|>`) as a workflow tool
 
@@ -90,9 +101,10 @@ life_expt |>
 16 |> sqrt() |> log2()
 ```
 
-The pipe sends the result of the left-hand side to the **first argument** of the function on the right.
+The pipe sends the result of the left-hand side to the **first
+argument** of the function on the right.
 
----
+------------------------------------------------------------------------
 
 ## Select columns — `select()` {#select}
 
@@ -110,6 +122,57 @@ iris_df |>
   names()
 ```
 
+The `select()` verb is pretty powerful in `dplyr` due to the helper
+functions.
+
+###1. Pattern-Based Helpers
+
+These are the most common tools for filtering columns by name.
+
+-   `starts_with("abc")`: Selects columns that begin with "abc".
+
+    -   Example: `select(df, starts_with("year"))`
+
+-   `ends_with("xyz")`: Selects columns that end with "xyz".
+
+    -   Example: `select(df, ends_with("_id"))`
+
+-   `contains("def")`: Selects columns that contain the string "def"
+    anywhere.
+
+    -   Example: `select(df, contains("margin"))`
+
+### 2.  Positional & Logic Helpers 
+These help you grab columns based on their order or relationship to other selections.
+
+- `everything()`: Matches all variables. Useful for reordering columns
+(e.g., select(df, target_var, everything()) moves target_var to the
+first column).
+
+- `last_col()`: Selects the very last column. You can add an offset, like
+last_col(offset = 1) for the second-to-last.
+
+- `all_of(vector)`: Selects columns based on a character vector. If a name
+is missing, it throws an error.
+
+- `any_of(vector)`: Same as all_of, but it doesn't error if some columns
+aren't found. This is safer for flexible scripts.
+
+### 3.  Data-Type Helpers (The `where()` function) 
+
+In modern dplyr, if you want to select based on the type of data (e.g., all numeric columns), you use the where() helper.
+
+- `where(is.numeric)`: Selects all double or integer columns.
+
+- `where(is.character)`: Selects all string columns.
+
+- `where(is.factor)`: Selects all categorical factor columns.
+
+Helper, Use Case starts_with(),"Identifying prefixes (e.g., income\_)"
+everything(),Reordering columns where(is.numeric),Selecting features for
+math/stats any_of(),Selecting from a list of strings safely :,"Selecting
+a range (e.g., col_a:col_f)"
+
 ### Student exercise: `select()`
 
 ```{r}
@@ -118,7 +181,7 @@ iris_df |>
 # Select only country, continent, and gdpPercap
 ```
 
----
+------------------------------------------------------------------------
 
 ## Rename variables — `rename()`
 
@@ -130,7 +193,7 @@ life_expt |>
             medgdppc = median(gdpPerCapita))
 ```
 
----
+------------------------------------------------------------------------
 
 ## Add new variables — `mutate()`
 
@@ -159,7 +222,7 @@ head(life_expt2)
 # Keep only country, year, and gdp_total
 ```
 
----
+------------------------------------------------------------------------
 
 ## Grouping data — `group_by()` and `top_n()`
 
@@ -179,7 +242,7 @@ life_expt |>
 # Find the top 3 countries by life expectancy in each continent
 ```
 
----
+------------------------------------------------------------------------
 
 ## Collapse data — `summarise()`
 
@@ -205,7 +268,7 @@ life_expt |>
 # Compute mean and median life expectancy
 ```
 
----
+------------------------------------------------------------------------
 
 ## Another data management application
 
@@ -240,7 +303,7 @@ housing_df3 |>
             avg_livingArea = mean(livingArea, na.rm = TRUE))
 ```
 
----
+------------------------------------------------------------------------
 
 ## Student exercises: cumulative `dplyr` practice
 
@@ -264,5 +327,3 @@ housing_df3 |>
 # Group by continent and year
 # Compute mean life expectancy
 ```
-
-
