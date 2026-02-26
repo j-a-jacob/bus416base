@@ -10,30 +10,30 @@ editor: visual
 
 After completing this module, you should be able to:
 
-- Explain what the `caret` package abstracts and why it is useful
-- Prepare outcome variables correctly for classification in caret
-- Perform stratified train–test splits for classification problems
-- Apply preprocessing correctly without data leakage
-- Train classification models using cross-validation
-- Evaluate and compare models using ROC-based metrics
-- Tune model hyperparameters using grid search
+-   Explain what the `caret` package abstracts and why it is useful
+-   Prepare outcome variables correctly for classification in caret
+-   Perform stratified train–test splits for classification problems
+-   Apply preprocessing correctly without data leakage
+-   Train classification models using cross-validation
+-   Evaluate and compare models using ROC-based metrics
+-   Tune model hyperparameters using grid search
 
----
+------------------------------------------------------------------------
 
 ## What is `caret`?
 
 `caret` (Classification And REgression Training) is a **wrapper framework** that provides:
 
-- a unified syntax for over 200 ML algorithms
-- consistent handling of:
-  - preprocessing
-  - resampling
-  - tuning
-  - performance evaluation
+-   a unified syntax for over 200 ML algorithms
+-   consistent handling of:
+    -   preprocessing
+    -   resampling
+    -   tuning
+    -   performance evaluation
 
 Rather than learning dozens of model-specific APIs, we learn **one workflow**.
 
----
+------------------------------------------------------------------------
 
 ## Installing and loading data
 
@@ -59,7 +59,7 @@ library(lattice)
 library(mlbadata)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Data structure and outcome preparation
 
@@ -74,21 +74,20 @@ str(bank.df)
 
 For **classification** in caret:
 
-* the outcome **must be a factor**
-* the **first level is the target class**
+-   the outcome **must be a factor**
+-   the **first level is the target class**
 
-Here, `Personal.Loan` is numeric (`0` / `1`).
-We convert it carefully.
+Here, `Personal.Loan` is numeric (`0` / `1`). We convert it carefully.
 
 ```{r}
 bank.df$Personal.Loan <- factor(
   bank.df$Personal.Loan,
-  labels = c("No", "Yes")
-) |> 
-  relevel(ref = "Yes")
+  levels = c(1, 0),
+  labels = c("Yes", "No"))
+
 ```
 
----
+------------------------------------------------------------------------
 
 ### Predictor cleanup
 
@@ -106,7 +105,7 @@ bank.df <- bank.df |>
 str(bank.df)
 ```
 
----
+------------------------------------------------------------------------
 
 ### Student check
 
@@ -116,7 +115,7 @@ str(bank.df)
 # before using caret for classification?
 ```
 
----
+------------------------------------------------------------------------
 
 ## Data partitioning (stratified)
 
@@ -143,7 +142,7 @@ print(paste0("Training set: ", mean(train.df$Personal.Loan == "Yes")))
 print(paste0("Test set: ", mean(test.df$Personal.Loan == "Yes")))
 ```
 
----
+------------------------------------------------------------------------
 
 ## Preprocessing without data leakage
 
@@ -162,10 +161,10 @@ glimpse(test.trnf)
 
 Note:
 
-* numeric variables were standardized
-* factor variables were untouched
+-   numeric variables were standardized
+-   factor variables were untouched
 
----
+------------------------------------------------------------------------
 
 ### Student check
 
@@ -175,16 +174,16 @@ Note:
 # parameters using the full dataset?
 ```
 
----
+------------------------------------------------------------------------
 
 ## Model training with `train()`
 
 The `train()` function:
 
-* performs resampling
-* tunes hyperparameters
-* selects the optimal model
-* estimates expected performance
+-   performs resampling
+-   tunes hyperparameters
+-   selects the optimal model
+-   estimates expected performance
 
 ### Define resampling strategy
 
@@ -199,7 +198,7 @@ fitCntrl <- trainControl(
 )
 ```
 
----
+------------------------------------------------------------------------
 
 ## Basic logistic regression
 
@@ -216,7 +215,7 @@ logistic1
 summary(logistic1)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Using ROC as the optimization metric
 
@@ -247,7 +246,7 @@ logistic2
 summary(logistic2)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Test set evaluation
 
@@ -260,7 +259,7 @@ confusionMatrix(
 )
 ```
 
----
+------------------------------------------------------------------------
 
 ## In-place preprocessing with `train()`
 
@@ -295,14 +294,14 @@ Compare predictions:
 table(test.pred == test.trnf.pred)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Hyperparameter tuning: penalized logistic regression
 
 Elastic net combines:
 
-* **ridge** (L2 penalty)
-* **lasso** (L1 penalty)
+-   **ridge** (L2 penalty)
+-   **lasso** (L1 penalty)
 
 ```{r}
 glmn_grid <- expand.grid(
@@ -327,7 +326,7 @@ glmnetMod <- train(
 glmnetMod
 ```
 
----
+------------------------------------------------------------------------
 
 ## Model interpretation
 
@@ -336,7 +335,7 @@ predictors(glmnetMod)
 varImp(glmnetMod)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Final evaluation
 
@@ -349,16 +348,13 @@ confusionMatrix(
 )
 ```
 
----
+------------------------------------------------------------------------
 
 ## Key takeaways
 
-* caret enforces **good ML hygiene**
-* outcome encoding matters
-* preprocessing must avoid leakage
-* cross-validation drives model selection
-* ROC is preferred under class imbalance
-* regularization controls model complexity
-
-
-
+-   caret enforces **good ML hygiene**
+-   outcome encoding matters
+-   preprocessing must avoid leakage
+-   cross-validation drives model selection
+-   ROC is preferred under class imbalance
+-   regularization controls model complexity

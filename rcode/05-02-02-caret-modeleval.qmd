@@ -10,29 +10,25 @@ editor: visual
 
 After completing this module, you should be able to:
 
-- Distinguish between class-based and probability-based evaluation metrics
-- Compare multiple classification models under a common resampling framework
-- Interpret cross-validation results versus holdout test performance
-- Evaluate classifiers using confusion matrices, ROC curves, AUC, and lift charts
-- Select and refit a final model for deployment using optimal hyperparameters
+-   Distinguish between class-based and probability-based evaluation metrics
+-   Compare multiple classification models under a common resampling framework
+-   Interpret cross-validation results versus holdout test performance
+-   Evaluate classifiers using confusion matrices, ROC curves, AUC, and lift charts
+-   Select and refit a final model for deployment using optimal hyperparameters
 
----
+------------------------------------------------------------------------
 
 ## Overview
 
 In this tutorial, we focus on **model evaluation**, not on learning new algorithms.
 
-The key idea is that:
-- **Models are interchangeable**
-- **Evaluation frameworks are not**
+The key idea is that: - **Models are interchangeable** - **Evaluation frameworks are not**
 
-Some metrics depend on:
-- predicted class labels (confusion matrix)
+Some metrics depend on: - predicted class labels (confusion matrix)
 
-Others depend on:
-- predicted class probabilities (ROC, AUC, lift)
+Others depend on: - predicted class probabilities (ROC, AUC, lift)
 
----
+------------------------------------------------------------------------
 
 ## Load required packages
 
@@ -47,7 +43,7 @@ library(yardstick)
 library(pROC)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Import and prepare the data
 
@@ -56,9 +52,8 @@ bank.df <- mlbadata::UniversalBank
 
 bank.df$Personal.Loan <- factor(
   bank.df$Personal.Loan,
-  labels = c("No", "Yes")
-) |> 
-  relevel(ref = "Yes")
+  levels = c(1, 0),
+  labels = c("Yes", "No"))
 
 bank.df <- bank.df |> 
   select(!c(ZIP.Code, ID)) |> 
@@ -80,7 +75,7 @@ bank.df <- bank.df |>
 # (b) "No" were the first factor level?
 ```
 
----
+------------------------------------------------------------------------
 
 ## Train–test partitioning
 
@@ -105,20 +100,19 @@ test.df  <- bank.df[-trIndex, ]
 # during model tuning or resampling?
 ```
 
----
+------------------------------------------------------------------------
 
 ## Model comparison setup
 
 We will compare three classification models:
 
-1. Elastic net logistic regression
-2. Random forest
-3. Gradient boosted trees
+1.  Elastic net logistic regression
+2.  Random forest
+3.  Gradient boosted trees
 
-At this stage, **the algorithms themselves are not the focus**.
-The focus is **how to evaluate them fairly**.
+At this stage, **the algorithms themselves are not the focus**. The focus is **how to evaluate them fairly**.
 
----
+------------------------------------------------------------------------
 
 ## Resampling and evaluation control
 
@@ -143,7 +137,7 @@ fitCntrl <- trainControl(
 # for this dataset?
 ```
 
----
+------------------------------------------------------------------------
 
 ## Tuning grids
 
@@ -158,7 +152,7 @@ grid_rf <- expand.grid(
 )
 ```
 
----
+------------------------------------------------------------------------
 
 ## Train the models
 
@@ -192,7 +186,7 @@ mod_gbm <- train(
 )
 ```
 
----
+------------------------------------------------------------------------
 
 ## Cross-validation performance comparison
 
@@ -216,7 +210,7 @@ summary(perfm_compare)
 # solely based on resampling performance?
 ```
 
----
+------------------------------------------------------------------------
 
 ## Final evaluation on the test set
 
@@ -239,7 +233,7 @@ gbm_hat$predClass <- colnames(gbm_hat)[max.col(gbm_hat)] |>
   factor(levels = c("Yes", "No"))
 ```
 
----
+------------------------------------------------------------------------
 
 ## Confusion matrix (class-based)
 
@@ -259,7 +253,7 @@ confusionMatrix(
 # matrix still be acceptable?
 ```
 
----
+------------------------------------------------------------------------
 
 ## Probability-based evaluation
 
@@ -279,7 +273,7 @@ mod_hat <- rbind(
 )
 ```
 
----
+------------------------------------------------------------------------
 
 ## Lift curves
 
@@ -300,7 +294,7 @@ autoplot(lift_data)
 # (b) your goal was maximizing capture rate?
 ```
 
----
+------------------------------------------------------------------------
 
 ## ROC curves and AUC
 
@@ -320,7 +314,7 @@ roc_table <- mod_hat |>
 roc_table
 ```
 
----
+------------------------------------------------------------------------
 
 ## Deploying the best model
 
@@ -344,13 +338,12 @@ best_rf <- train(
 )
 ```
 
----
+------------------------------------------------------------------------
 
 ## Key takeaways
 
-* Evaluation must be separated from modeling
-* ROC and lift are probability-based metrics
-* Cross-validation ≠ final performance
-* Test data is used once
-* Deployment requires fixed hyperparameters
-
+-   Evaluation must be separated from modeling
+-   ROC and lift are probability-based metrics
+-   Cross-validation ≠ final performance
+-   Test data is used once
+-   Deployment requires fixed hyperparameters

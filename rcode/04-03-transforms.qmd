@@ -43,6 +43,7 @@ We begin with the cereals dataset.
 
 ```{r}
 df1 <- mlbadata::Cereals
+df1 <- na.omit(df1)
 glimpse(df1)
 ```
 
@@ -81,7 +82,7 @@ glimpse(df2)
 To build intuition, we start with just **two variables**:
 
 * calories
-* rating
+* carbo
 
 ```{r}
 df1.sm <- df1[, c(4, 16)]
