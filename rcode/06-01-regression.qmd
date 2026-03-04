@@ -178,7 +178,7 @@ Rename columns for clarity:
 
 ```{r}
 augment(lm.1, newdata = valid.df) |> 
-  rename(
+  dplyr::rename(
     Pricehat = .fitted,
     resid = .resid
   ) -> valid.pred

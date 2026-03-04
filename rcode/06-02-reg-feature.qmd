@@ -121,8 +121,8 @@ Now, we apply this object on the training and test set.
 X_train <- predict(dum_vars, newdata = train.df) |> as.data.frame()
 X_valid <- predict(dum_vars, newdata = valid.df) |> as.data.frame()
 
-y_train = train.df$Price
-y_valid = valid.df$Price
+y_train <- train.df$Price
+y_valid <- valid.df$Price
 ```
 
 
