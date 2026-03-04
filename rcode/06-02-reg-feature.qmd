@@ -67,8 +67,8 @@ car.df <- mlbadata::ToyotaCorolla
 car.df <- car.df[1:1000, ]
 
 # convert fuel type to factor
-car.df$Fuel_Type <- as.factor(car.df$Fuel_Type)
-
+car.df$Fuel_Type <- as_factor(car.df$Fuel_Type) |> 
+  fct_relevel("CNG")
 selected.var <- c(3, 4, 7, 8, 9, 10, 12, 13, 14, 17, 18)
 car.df.sel <- car.df[, selected.var]
 
@@ -90,27 +90,41 @@ glimpse(car.df.sel)
 
 ## Creating full-rank dummy variables
 
-To avoid perfect multicollinearity, we explicitly create **full-rank dummy variables** by removing one category per factor.
+We will first partition the data into training and validation set and then apply pre-processing steps to the training set. We will then apply those steps to the test data with inputs from the training set. This prevents data leakage. For this reason, we will use `caret()` library to create dummy variables and then apply that step to training and test set.
 
-```{r}
-car.df.dum <- dummy_columns(
-  car.df.sel,
-  remove_first_dummy = TRUE,
-  remove_selected_columns = TRUE
-)
-```
 
----
+
 
 ## Train–validation split
 
 ```{r}
 set.seed(1)
-trainInd <- createDataPartition(car.df.dum$Price, p = 0.6, list = FALSE)
+trainInd <- createDataPartition(car.df$Price, p = 0.6, list = FALSE)
 
-train.df <- car.df.dum[trainInd, ]
-valid.df <- car.df.dum[-trainInd, ]
+train.df <- car.df[trainInd, ]
+valid.df <- car.df[-trainInd, ]
 ```
+
+Now, to avoid perfect multicollinearity, we explicitly create **full-rank dummy variables** by removing one category per factor.
+
+
+```{r}
+dum_vars <- dummyVars(Price ~ .,
+                        data = car.df.sel,
+                        fullRank = TRUE)
+ 
+```
+
+Now, we apply this object on the training and test set.
+
+```{r}
+X_train <- predict(dum_vars, newdata = train.df) |> as.data.frame()
+X_valid <- predict(dum_vars, newdata = valid.df) |> as.data.frame()
+
+y_train = train.df$Price
+y_valid = valid.df$Price
+```
+
 
 ---
 
@@ -131,8 +145,8 @@ valid.df <- car.df.dum[-trainInd, ]
 ```{r}
 set.seed(123)
 forwd.1 <- train(
-  Price ~ ., 
-  data = train.df,
+  x = X_train, 
+  y = y_train,
   method = "leapForward"
 )
 forwd.1
@@ -163,18 +177,23 @@ coef(forwd.1$finalModel, which.min(forwd.1$results$RMSE))
 
 ## Forward selection with expanded search
 
+`caret()` defaults to searching over three sensible values. We can expand the search space by providing a grid.
+
 ```{r}
 optimal.n <- expand.grid(nvmax = 1:10)
 
 set.seed(123)
-forwd.2 <- train(
-  Price ~ .,
-  data = train.df,
+forwd.2 <-  train(
+  x = X_train, 
+  y = y_train,
   method = "leapForward",
   tuneGrid = optimal.n
 )
 forwd.2
 ```
+
+The best model is still the one with 4 variables.
+
 
 Extract selected predictors:
 
@@ -197,9 +216,9 @@ forward <- list(
 
 ```{r}
 set.seed(123)
-bckwrd <- train(
-  Price ~ .,
-  data = train.df,
+bckwrd <-  train(
+  x = X_train, 
+  y = y_train,
   method = "leapBackward",
   tuneGrid = optimal.n
 )
@@ -233,9 +252,9 @@ backward <- list(
 
 ```{r}
 set.seed(123)
-seqsel <- train(
-  Price ~ .,
-  data = train.df,
+seqsel <-  train(
+  x = X_train, 
+  y = y_train,
   method = "leapSeq",
   tuneGrid = optimal.n
 )
@@ -289,14 +308,14 @@ selection.list
 ## Validation-set performance
 
 ```{r}
-Price.for <- predict(forwd.2, newdata = valid.df)
-for_sel <- postResample(Price.for, valid.df$Price)
+Price.for <- predict(forwd.2, newdata = X_valid)
+for_sel <- postResample(Price.for, y_valid)
 
-Price.back <- predict(bckwrd, newdata = valid.df)
-back_sel <- postResample(Price.back, valid.df$Price)
+Price.back <- predict(bckwrd, newdata = X_valid)
+back_sel <- postResample(Price.back,  y_valid)
 
-Price.seq <- predict(seqsel, newdata = valid.df)
-seq_sel <- postResample(Price.seq, valid.df$Price)
+Price.seq <- predict(seqsel, newdata = X_valid)
+seq_sel <- postResample(Price.seq,  y_valid)
 
 rbind(for_sel, back_sel, seq_sel)
 ```

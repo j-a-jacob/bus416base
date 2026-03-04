@@ -45,6 +45,8 @@ To keep computation manageable and interpretation clear, we:
 * select a subset of relevant variables
 * treat fuel type as a categorical variable
 
+Moving foward, we will operate within the `tidyverse` framework. So will use `factor()` or the `forcats()` library for creating factors and `caret` packages, `dummyVars` function to create dummy variables.
+
 ```{r}
 car.df <- mlbadata::ToyotaCorolla
 
@@ -52,9 +54,11 @@ car.df <- mlbadata::ToyotaCorolla
 car.df <- car.df[1:1000, ]
 
 head(car.df)
+car.df |> distinct(Fuel_Type)
 
 # convert fuel type to factor
-car.df$Fuel_Type <- as.factor(car.df$Fuel_Type)
+car.df$Fuel_Type <- as_factor(car.df$Fuel_Type) |> 
+  fct_relevel("CNG")
 
 head(car.df)
 ```
@@ -114,7 +118,7 @@ valid.df <- car.df.sel[-trainInd, ]
 
 ## Baseline multiple linear regression
 
-We begin with a **full model**, including all selected predictors.
+We begin with a **full model**, including all selected predictors and evaluate in base R.
 
 ```{r}
 lm.1 <- lm(Price ~ ., data = train.df)
@@ -126,7 +130,10 @@ Model output:
 tidy(lm.1)
 ```
 
-Goodness-of-fit statistics:
+### Post-estimation statistics
+
+We can use `glance()` to view post-estimation stats like the R-squared
+
 
 ```{r}
 glance(lm.1)
@@ -177,19 +184,21 @@ augment(lm.1, newdata = valid.df) |>
   ) -> valid.pred
 ```
 
+
+In above code chunk, we are using the assignment operator after the pipe operations.
 ---
 
-## Model performance metrics
+## Model performance metrics. A useful function to summarize the performace of the model against the truth is `postRedample()`. 
 
-We compute standard regression accuracy measures.
+
 
 ```{r}
-postResample(valid.pred$Pricehat, valid.df$Price)
+postResample(pred = valid.pred$Pricehat,obs = valid.df$Price)
 ```
 
 ### Interpretation
 
-* RMSE measures average prediction error in original units
+* Root Mean Squared Error (RMSE) is a good summary measure of how much information is not captured by the model.
 * These metrics reflect **generalization performance**
 
 ---
