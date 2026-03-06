@@ -10,18 +10,19 @@ editor: visual
 
 After completing this module, you should be able to:
 
-- Explain why regularization improves predictive performance
-- Distinguish between LASSO, Ridge, and Elastic Net penalties
-- Tune penalized regression models using cross-validation in `caret`
-- Interpret coefficient shrinkage and variable selection
-- Compare regularized models using validation-set RMSE
+-   Explain why regularization improves predictive performance
+-   Distinguish between LASSO, Ridge, and Elastic Net penalties
+-   Tune penalized regression models using cross-validation in `caret`
+-   Interpret coefficient shrinkage and variable selection
+-   Compare regularized models using validation-set RMSE
 
----
+------------------------------------------------------------------------
 
 ## Load the libraries
 
 ```{r}
 library(tidyverse) 
+library(tidymodels)
 library(broom) 
 library(forecast) 
 library(caret) 
@@ -29,7 +30,7 @@ library(mlbadata)
 library(fastDummies)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Data preparation
 
@@ -42,32 +43,46 @@ car.df <- mlbadata::ToyotaCorolla
 car.df <- car.df[1:1000, ]
 
 # convert fuel type to factor
-car.df$Fuel_Type <- as.factor(car.df$Fuel_Type)
-
+car.df$Fuel_Type <- as_factor(car.df$Fuel_Type) |> 
+  fct_relevel("CNG")
 selected.var <- c(3, 4, 7, 8, 9, 10, 12, 13, 14, 17, 18)
 car.df.sel <- car.df[, selected.var]
 
-# create full-rank dummy variables
-car.df.dum <- dummy_columns(
-  car.df.sel,
-  remove_first_dummy = TRUE,
-  remove_selected_columns = TRUE
-)
+glimpse(car.df.sel)
 ```
-
----
 
 ## Train–validation split
 
 ```{r}
 set.seed(1)
-trainInd <- createDataPartition(car.df.dum$Price, p = 0.6, list = FALSE)
+trainInd <- createDataPartition(car.df$Price, p = 0.6, list = FALSE)
 
-train.df <- car.df.dum[trainInd, ]
-valid.df <- car.df.dum[-trainInd, ]
+train.df <- car.df[trainInd, ]
+test.df <- car.df[-trainInd, ]
 ```
 
----
+In penalized models, multicollinearity is not really a problem. So we can do "one-hot encoding", i.e. have as many variables as levels.
+
+```{r}
+dum_vars <- dummyVars(Price ~ .,
+                        data = car.df.sel,
+                        fullRank = FALSE)
+ 
+```
+
+Now, we apply this object on the training and test set.
+
+```{r}
+X_train <- predict(dum_vars, newdata = train.df) |> as.data.frame()
+X_test <- predict(dum_vars, newdata = test.df) |> as.data.frame()
+
+y_train <- train.df$Price
+y_test <- test.df$Price
+```
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
 
 ## Why regularization?
 
@@ -75,55 +90,48 @@ In earlier chapters, **feature selection** was equivalent to setting some coeffi
 
 Key differences from stepwise selection:
 
-* Regularization is **continuous**, not discrete
-* All predictors compete simultaneously
-* Coefficients are penalized based on magnitude, not count
-* Typically yields **lower variance** models
+-   Regularization is **continuous**, not discrete
+-   All predictors compete simultaneously
+-   Coefficients are penalized based on magnitude, not count
+-   Typically yields **lower variance** models
 
 Predictors are standardized so that penalties apply equally across variables.
 
----
+------------------------------------------------------------------------
 
 ## Penalty formulations
 
 Let the sum of squared errors be:
 
-[
-SSE = \sum_{i=1}^N \left(y_i - \beta_0 - \sum_{j=1}^K \beta_j x_{ij}\right)^2
-]
+$SSE = \sum_{i=1}^N \left(y_i - \beta_0 - \sum_{j=1}^K \beta_j x_{ij}\right)^2$
 
 ### LASSO (L1 penalty)
 
-[
-SSE + \lambda \sum_{j=1}^K |\beta_j|
-]
+$SSE + \lambda \sum_{j=1}^K |\beta_j|$
 
-* Encourages **sparse models**
-* Can set coefficients exactly to zero
-* Performs variable selection automatically
+-   Encourages **sparse models**
+-   Can set coefficients exactly to zero
+-   Performs variable selection automatically
 
 ### Ridge (L2 penalty)
 
-[
-SSE + \lambda \sum_{j=1}^K \beta_j^2
-]
+$SSE + \lambda \sum_{j=1}^K \beta_j^2$
 
-* Shrinks coefficients smoothly
-* Keeps all predictors
-* Works well with correlated predictors
+-   Shrinks coefficients smoothly
+-   Keeps all predictors
+-   Works well with correlated predictors
 
 ### Elastic Net
 
-[
-SSE + \lambda \left( \alpha \sum_{j=1}^K |\beta_j| +
-\frac{1-\alpha}{2} \sum_{j=1}^K \beta_j^2 \right)
-]
+\$ SSE + \lambda \left( \alpha \sum\_{j=1}\^K \|\beta\*j\| +\*\frac{1-\alpha}{2} \sum{j=1}\^K \beta\_j\^2 \right) \$
 
-* Combines LASSO and Ridge
-* (\alpha = 1) → LASSO
-* (\alpha = 0) → Ridge
+-   Combines LASSO and Ridge
 
----
+-   $\alpha = 1$ → LASSO
+
+-   $\alpha = 0$ → Ridge
+
+------------------------------------------------------------------------
 
 ### Student exercise 1: intuition check
 
@@ -134,11 +142,13 @@ SSE + \lambda \left( \alpha \sum_{j=1}^K |\beta_j| +
 # Which do you expect Ridge to keep but shrink?
 ```
 
----
+Ridge is preferred when there are many predictors but have really small effects. It does not drop the variables but can reduce their impact. Lasso, on the other hand, can drop some vaiables to 0. Useful in the strategy and execution space where few actionable insights may be more valuable.
+
+------------------------------------------------------------------------
 
 ## LASSO regression
 
-We tune (\lambda) using 5-fold cross-validation.
+We tune (\lambda) using 5-fold cross-validation. This is the workflow that will be consistent for all `caret` routines. We will set the train control in which we specify the type of resampling, whether we are doing prediction or classification and parallel processing or not.
 
 ```{r}
 Cntrl <- trainControl(
@@ -146,56 +156,55 @@ Cntrl <- trainControl(
   number = 5,
   allowParallel = TRUE
 )
+```
 
+Next, we define the tuning grid for they hyperparameters.
+
+```{r}
 lassoGrid <- expand.grid(
   alpha = 1,
   lambda = 10^seq(-3, 5, length.out = 100)
 )
 ```
 
+The final step is the workhorse of `caret`: the `train` function. Also, notice that we are doing pre-processing within the `train` function. This is a little different than what we have done. Howeverm there is huge advantage of this workflow. There is no data leakage. The preprocessin is done on the training set and the parameter values, like the mean and standard dev of all the numeric variables is stored in the function call. When this model (object) is applied to the test dataset, the centering and scaling happens using the parameter values from the training set.
+
 ```{r}
 set.seed(14)
-lasso <- train(
-  Price ~ .,
-  data = train.df,
+lasso_fit <- train(
+  y = y_train ,
+  x = X_train,
   trControl = Cntrl,
   tuneGrid = lassoGrid,
   method = "glmnet",
   preProc = c("center", "scale")
 )
 
-lasso
+lasso_fit
 ```
 
----
+------------------------------------------------------------------------
 
 ### Inspecting the LASSO model
 
 ```{r}
-lasso$bestTune
-coef(lasso$finalModel, s = lasso$bestTune$lambda)
+lasso_fit$bestTune
+coef(lasso_fit$finalModel, s = lasso_fit$bestTune$lambda)
 ```
 
----
+------------------------------------------------------------------------
 
 ### Model performance
 
 ```{r}
-accuracy(predict(lasso, train.df), train.df$Price)
-accuracy(predict(lasso, newdata = valid.df), valid.df$Price)
+rbind(
+forecast::accuracy(predict(lasso_fit, X_train), y_train),
+forecast::accuracy(predict(lasso_fit, newdata = X_test), y_test)
+)
+
 ```
 
----
-
-### Student exercise 2: interpretation
-
-```{r}
-#| eval: false
-# Why does LASSO set some coefficients exactly to zero,
-# while Ridge does not?
-```
-
----
+------------------------------------------------------------------------
 
 ## Ridge regression
 
@@ -208,24 +217,34 @@ ridgeGrid <- expand.grid(
 )
 
 set.seed(14)
-ridge <- train(
-  Price ~ .,
-  data = train.df,
+ridge_fit <- train(
+  y = y_train ,
+  x = X_train,
   method = "glmnet",
   trControl = Cntrl,
   tuneGrid = ridgeGrid,
   preProc = c("center", "scale")
 )
 
-ridge$bestTune
-coef(ridge$finalModel, s = ridge$bestTune$lambda)
+ridge_fit$bestTune
+coef(ridge_fit$finalModel, s = ridge_fit$bestTune$lambda)
 ```
 
 ```{r}
-accuracy(predict(ridge, newdata = valid.df), valid.df$Price)
+forecast::accuracy(predict(ridge_fit, newdata = X_test), y_test)
 ```
 
----
+### Student exercise 2: interpretation
+
+```{r}
+#| eval: false
+# Why does LASSO set some coefficients exactly to zero,
+# while Ridge does not?
+```
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
 
 ### Student exercise 3: comparison
 
@@ -235,7 +254,7 @@ accuracy(predict(ridge, newdata = valid.df), valid.df$Price)
 # when predictors are highly correlated?
 ```
 
----
+------------------------------------------------------------------------
 
 ## Elastic Net (your turn)
 
@@ -250,19 +269,32 @@ enetGrid <- expand.grid(
 
 ```{r}
 set.seed(14)
-enet <- train(
-  Price ~ .,
-  data = train.df,
+enet_fit <- train(
+  y = y_train ,
+  x = X_train,
   method = "glmnet",
   trControl = Cntrl,
   tuneGrid = enetGrid,
   preProc = c("center", "scale")
 )
 
-enet$bestTune
+enet_fit$bestTune
 ```
 
----
+------------------------------------------------------------------------
+
+Let us compare the performance of the models from the cross-validation set
+
+```{r}
+model_list <- list(
+  lasso = lasso_fit,
+  ridge = ridge_fit,
+  enet = enet_fit
+)
+
+resampResults <- resamples(model_list)
+summary(resampResults)
+```
 
 ### Student exercise 4: model comparison
 
@@ -274,13 +306,64 @@ enet$bestTune
 # 3. Elastic Net
 #
 # Which would you deploy and why?
+
+model_eval <- as_tibble(cbind(model = c("lasso", "ridge", "enet"),
+    rbind(
+      forecast::accuracy(predict(lasso, newdata = X_test), y_test),
+      forecast::accuracy(predict(ridge, newdata = X_test), y_test),
+      forecast::accuracy(predict(enet, newdata = X_test), y_test)
+    )))
+
+model_eval
 ```
 
----
+We can also directly get a tibble using the `metric()` function from the `yardstick` library. Metric requires the predicted value to be in a dataframe. This is useful when we run a large set of models and want to compare the results on the test set all at once. We will use the functional programming approach. The steps are:
+
+1.  Store the trained models in a list.
+2.  Use `metric_set()` function to include all the desired metrics
+3.  Predict on the same test set
+4.  Convert that to a tibble
+5.  Compute evaluation metrics
+6.  Reshape the evaluation metrics to the desired format.
+
+```{r}
+model_list <- list(
+  lasso = lasso_fit,
+  ridge = ridge_fit,
+  enet = enet_fit
+)
+
+eval_metrics <- metric_set(rmse, mape, rsq)
+
+predictions <- imap(model_list, \(mod, idx) {
+  pred <- predict(mod, newdata = X_test)
+  tibble(
+    model = idx,
+    yhat = pred,
+    y = y_test  ) |> 
+    eval_metrics(truth = y, estimate = yhat) |> 
+    pivot_wider(names_from = .metric, 
+                values_from = .estimate) |> 
+    mutate(model = idx, .before = 1)
+      }
+  )
+
+eval_results <- bind_rows(predictions)
+
+```
+
+------------------------------------------------------------------------
 
 ## Final model for deployment
 
-Once hyperparameters are chosen, we refit the model **without resampling** using the full dataset.
+Once hyperparameters are chosen, we refit the model **without resampling** using the full dataset. This is a crucial step in deployment. If we do not run the model on the entire dataset, we are missing out on the information contained in the test data. Also, notice the little trick here. If we do not specify the tuning grid, `caret` will tune over three values of the hyper-parameters using 25 bootstrapped samples. By specifying the optimal values of the parameters as well as using "none" as the resampling method, we are telling `caret` to fit the model only using these values. Before we run this, we need one final preprocessing step- creating dummy variables on the entire dataset.
+
+```{r}
+X_full <- predict(dum_vars, newdata = car.df.sel) |> as.data.frame()
+
+y_full <- car.df.sel$Price
+
+```
 
 ```{r}
 Cntrl <- trainControl(
@@ -294,8 +377,8 @@ enetGrid <- expand.grid(
 )
 
 final_enet <- train(
-  Price ~ .,
-  data = car.df.dum,
+  y = y_full,
+  x = X_full,
   method = "glmnet",
   trControl = Cntrl,
   tuneGrid = enetGrid,
@@ -303,19 +386,12 @@ final_enet <- train(
 )
 ```
 
-```{r}
-# Example scoring
-# predict(final_enet, newdata = mynewdata)
-```
-
----
+------------------------------------------------------------------------
 
 ## Key takeaways
 
-* Regularization reduces overfitting by shrinking coefficients
-* LASSO performs variable selection
-* Ridge stabilizes estimates under multicollinearity
-* Elastic Net balances sparsity and stability
-* Hyperparameters must be tuned via cross-validation
-
-
+-   Regularization reduces overfitting by shrinking coefficients
+-   LASSO performs variable selection
+-   Ridge stabilizes estimates under multicollinearity
+-   Elastic Net balances sparsity and stability
+-   Hyperparameters must be tuned via cross-validation

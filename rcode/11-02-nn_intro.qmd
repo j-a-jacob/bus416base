@@ -31,6 +31,7 @@ library(NeuralNetTools)
 We will also use python package scikit-learn to create the neural nets and use functions from caret to evaluate model fit. Neural Nets are called Multi-Layer Perceptron (MLP) and we will use the MLPClassifier to estimate these models.
 
 To set up the python environment:
+
 ```{r}
 library(reticulate)
 use_virtualenv("mlpyenv")
@@ -42,6 +43,7 @@ import("sklearn.preprocessing")
 ```
 
 Let's start with a tiny dataset to motivate the creation of nns
+
 ```{r}
 tiny_df <- mlbadata::TinyData
 glimpse(tiny_df)
@@ -55,7 +57,6 @@ str(tiny_df)
 # How many rows and columns does tiny_df contain?
 # Identify the predictor variables and the outcome variable.
 ```
-
 
 One requirement of nn is that the data be either \[0,1\] or \[-1,1\]. This is met here. Otherwise, the data should be rescaled as follows:
 
@@ -120,6 +121,7 @@ y_prob
 ```
 
 ### Building a neural network natively in Python
+
 We can run the same MLP model in `Python`
 
 ```{python}
@@ -160,7 +162,8 @@ accuracy_score(y, mlpcl.predict(X))
 ```
 
 There is more detailed information in caret.
-```
+
+```         
 #| eval: false
 # Exercise:
 # Manually compute the accuracy from the confusion matrix.
@@ -168,9 +171,10 @@ There is more detailed information in caret.
 
 ### Building a neural network in caret
 
-We can also, very easily build a single-layer neural network in `caret`. Note that while `caret` contains wrapper function for several neural networks, the most commonly used algorithm for classification is the `nnet` package, which _only allows one hidden layer_. __*For more elaborate networks, we will default to MLPClassifier in sklearn.*__
+We can also, very easily build a single-layer neural network in `caret`. Note that while `caret` contains wrapper function for several neural networks, the most commonly used algorithm for classification is the `nnet` package, which *only allows one hidden layer*. ***For more elaborate networks, we will default to MLPClassifier in sklearn.***
 
 In caret, the convention is to label the first class as the class of interest. So we will relevel the wights
+
 ```{r}
 # Let's relevel the data
 tiny_df$Acceptance <- fct_relevel(tiny_df$Acceptance, "like")

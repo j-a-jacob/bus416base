@@ -10,13 +10,13 @@ echo: true
 
 After completing this module, students should be able to:
 
-- Explain why linear regression is inappropriate for classification
-- Interpret logistic regression coefficients as log-odds and odds ratios
-- Fit logistic regression models using `glm()`
-- Generate predicted probabilities from a logistic model
-- Understand how probability cutoffs relate to classification decisions
+-   Explain why linear regression is inappropriate for classification
+-   Interpret logistic regression coefficients as log-odds and odds ratios
+-   Fit logistic regression models using `glm()`
+-   Generate predicted probabilities from a logistic model
+-   Understand how probability cutoffs relate to classification decisions
 
----
+------------------------------------------------------------------------
 
 ## Ch 10: Logistic Regression
 
@@ -34,7 +34,6 @@ library(caret)
 library(yardstick)
 library(broom)
 library(mlbadata)
-````
 
 ---
 
@@ -66,7 +65,6 @@ We will estimate both models and visualize the difference.
 
 ### Data setup
 
-```{r}
 toy.df <- mlbadata::UniversalBank[, c(4, 10)]
 
 toy.df$Class <- factor(
@@ -92,7 +90,7 @@ logit.1 <- glm(Class ~ Income, family = "binomial", data = toy.df)
 tidy(logit.1)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Comparing fitted curves
 
@@ -116,7 +114,7 @@ toy.df %>%
   )
 ```
 
----
+------------------------------------------------------------------------
 
 ### 🧠 Student Exercise 1 — Conceptual check
 
@@ -127,31 +125,25 @@ toy.df %>%
 # List two concrete issues visible in the plot.
 ```
 
----
+------------------------------------------------------------------------
 
 ## Logistic regression: general form
 
 In general, the logistic response function is:
 
-[
-p = \frac{1}{1 + \exp^{-(\beta_0 + \beta_1 x_1 + \dots + \beta_K x_K)}}
-]
+\[ p = \frac{1}{1 + \exp^{-(\beta_0 + \beta_1 x_1 + \dots + \beta_K x_K)}}\]
 
 Define the **odds of success** as:
 
-[
-Odds(Y = 1) = \frac{p}{1 - p}
-]
+\[ Odds(Y = 1) = \frac{p}{1 - p}\]
 
 Taking logs:
 
-[
-\log(odds) = \beta_0 + \beta_1 x_1 + \dots + \beta_K x_K
-]
+\[ \log(odds) = \beta\_0 + \beta\_1 x_1 + \dots + \beta\_K x_K\]
 
 This log-odds formulation is what `glm()` estimates when `family = "binomial"`.
 
----
+------------------------------------------------------------------------
 
 ## Full logistic regression model
 
@@ -191,7 +183,7 @@ train.df <- bank.df[train.index, ]
 valid.df <- bank.df[-train.index, ]
 ```
 
----
+------------------------------------------------------------------------
 
 ## Estimating the logistic regression
 
@@ -206,7 +198,7 @@ summary(logit.reg)
 tidy(logit.reg)
 ```
 
----
+------------------------------------------------------------------------
 
 ### 🧠 Student Exercise 2 — Interpretation
 
@@ -219,7 +211,7 @@ tidy(logit.reg)
 # (b) odds
 ```
 
----
+------------------------------------------------------------------------
 
 ## Odds ratios
 
@@ -237,7 +229,7 @@ result.1 %>%
 
 A value greater than 1 indicates that an increase in the predictor increases the odds of being in class "Yes".
 
----
+------------------------------------------------------------------------
 
 ### 🧠 Student Exercise 3 — Odds ratios
 
@@ -249,7 +241,7 @@ A value greater than 1 indicates that an increase in the predictor increases the
 # Explain what each means in plain language.
 ```
 
----
+------------------------------------------------------------------------
 
 ## Predicted probabilities
 
@@ -276,7 +268,7 @@ logit.reg.trpred <- predict(
 head(logit.reg.trpred)
 ```
 
----
+------------------------------------------------------------------------
 
 ### 🧠 Student Exercise 4 — Classification logic
 
@@ -288,11 +280,10 @@ head(logit.reg.trpred)
 # What happens if we lower the cutoff to 0.25?
 ```
 
----
+------------------------------------------------------------------------
 
 ## Wrap-up
 
 Logistic regression models probabilities through a nonlinear transformation that ensures valid predictions between 0 and 1. Coefficients are interpreted through log-odds and odds ratios, and classification decisions depend critically on the choice of probability cutoff.
 
 In the next module, we will evaluate logistic models using confusion matrices, ROC curves, and lift charts.
-
