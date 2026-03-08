@@ -34,28 +34,25 @@ library(caret)
 library(yardstick)
 library(broom)
 library(mlbadata)
-
+```
 ---
-
 ## Why linear regression fails for classification
 
 Let us first model the acceptance of a personal loan as a function of income.
 
 Let
 
-* ( p ) = probability of accepting a personal loan
+$ p $ = probability of accepting a personal loan
 
 A linear probability model is given by:
 
-[
-p = \beta_0 + \beta_1 \cdot income
-]
+$ p = \beta_0 + \beta_1 \cdot income $
 
 The **logistic response function** is:
 
-[
-p = \frac{1}{1 + \exp^{-(\beta_0 + \beta_1 \cdot income)}}
-]
+
+$ p = \frac{1}{1 + \exp^{-(\beta_0 + \beta_1 \cdot income)}} $
+
 
 We will estimate both models and visualize the difference.
 
