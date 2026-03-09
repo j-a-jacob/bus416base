@@ -1,5 +1,5 @@
 ---
-title: "10-01 Logistic Regression"
+title: "10-01-logistic"
 format: html
 editor: visual
 error: true
@@ -12,275 +12,348 @@ After completing this module, students should be able to:
 
 -   Explain why linear regression is inappropriate for classification
 -   Interpret logistic regression coefficients as log-odds and odds ratios
--   Fit logistic regression models using `glm()`
+-   Fit logistic regression models using `train()`
 -   Generate predicted probabilities from a logistic model
 -   Understand how probability cutoffs relate to classification decisions
 
 ------------------------------------------------------------------------
 
+Note: This is the updated project file.
+
 ## Ch 10: Logistic Regression
 
-Classification refers to assigning a success or failure class (in the case of binary outcomes) to an observation. This class assignment is based on generating a probability of the outcome for that case and then classifying the record using a probability cutoff value.
+Classification refers to the idea of assigning a success or failure class (in the case of binary outcomes) to to an observation. This class assignment is based on generating a probability of the outcome for that case and then classifying the record using a probability cutoff value. Since, we need to generate probabilities, we can not use the traditional ordinary least squared regression approach there is nothing in the model that restricts the predictions to be between 0 and 1. Logistic regression is an approach that helps us get around that.
 
-Since we need to generate probabilities, we cannot use traditional ordinary least squares regression: there is nothing in OLS that restricts predictions to lie between 0 and 1. Logistic regression addresses this issue by modeling probabilities through a nonlinear response function.
-
-This file introduces logistic regression using the base R `glm()` syntax.
+This file introduces logistical regression using the `caret()` syntax.
 
 ```{r}
+#| echo: true
 #| message: false
 #| warning: false
 library(tidyverse)
+#library(gains)
 library(caret)
 library(yardstick)
 library(broom)
 library(mlbadata)
 ```
----
-## Why linear regression fails for classification
 
-Let us first model the acceptance of a personal loan as a function of income.
+Let us first model the acceptance of personal loan as a function on income. Let `p` denote the probability of accepting a personal loan. The linear model to estimate the probability is given by:
 
-Let
+$p = \beta_0 + \beta_1 income$
 
-$ p $ = probability of accepting a personal loan
+We will contrast this with a logistic function.
 
-A linear probability model is given by:
+The *logistic response function* is given by:
 
-$ p = \beta_0 + \beta_1 \cdot income $
+$p = \frac{1}{1 + \exp^{-(\beta_0 + \beta_1 income)}}$
 
-The **logistic response function** is:
+We will estimate the response from both the models and plot the resulting curve.
 
-
-$ p = \frac{1}{1 + \exp^{-(\beta_0 + \beta_1 \cdot income)}} $
-
-
-We will estimate both models and visualize the difference.
-
----
-
-## Toy example: linear vs logistic fit
-
-### Data setup
-
-toy.df <- mlbadata::UniversalBank[, c(4, 10)]
-
-toy.df$Class <- factor(
-  toy.df$Personal.Loan,
-  levels = c(0, 1),
-  labels = c("No", "Yes")
-)
-
-glimpse(toy.df)
-```
-
-### Linear regression (incorrect model)
+For estimation, we will continue the use of the `train()` function and the method will be `glm`.
 
 ```{r}
+
+toy.df <- mlbadata::UniversalBank[,c(4,10)]
+toy.df$Class <- factor(toy.df$Personal.Loan, 
+                                levels = c(1,0),
+                                labels = c("Yes", "No"))
+
+
+# First, the linear regression
 reg.1 <- lm(Personal.Loan ~ Income, data = toy.df)
 tidy(reg.1)
+
 ```
 
-### Logistic regression (correct model)
+Now logit
 
 ```{r}
-logit.1 <- glm(Class ~ Income, family = "binomial", data = toy.df)
-tidy(logit.1)
+Cntrl <- trainControl( method = "none",
+                       classProbs = TRUE,
+                      summaryFunction = twoClassSummary)
+
+logit.1 <- train(Class ~ Income,
+                 data = toy.df,
+                 trControl = Cntrl,
+                 method = "glm",
+                 family = "binomial"
+                 )
+
+logit.1
 ```
 
-------------------------------------------------------------------------
-
-## Comparing fitted curves
+In `caret()` the results are stored in the object `$finalModel`
 
 ```{r}
-lin.mod <- function(x) {
-  reg.1$coefficients[1] + reg.1$coefficients[2] * x
+summary(logit.1$finalModel)
+
+```
+
+We can obtain this in the tidy format:
+
+```{r}
+tidy(logit.1$finalModel)
+```
+
+**Important**
+
+Notice the coefficient on `Income`. It is negative in the above estimation but positive in the regression model. This is because `caret()` expects the first level to be the target level while the underlying algorithm that it runs, `glm()` assumes that the second level is the target level. So the results reported are actually modelling y = "No". When we use `augment()` or `predict()` to obtain probabilities after `train()`, we will still get the predictions for yes and no classes in the right manner. Keep this in mind however, when you interpret the estimation results.
+
+Now, to obtain the predicted probabilities from the linear regression model and the logit model, we can use the `predict()` function.
+
+```{r}
+predict(reg.1, newdata = head(toy.df, 15))
+```
+
+We see that some of the probabilities are negative. This is not permissible.
+
+In case of the logit model, we will see that the probabilities are constrained between 0 to 1.
+
+```{r}
+predict(logit.1, newdata = head(toy.df, 15), type = "prob")
+
+```
+
+To see the predicted class:
+
+```{r}
+predict(logit.1, newdata = head(toy.df, 15), type = "raw") |> as_tibble()
+```
+
+Plotting this will make this point clear. To obtain the predicted probably, we have have carry out some transformations. Below, we plot the predicted probabilities from the linear as well as the logit model
+
+```{r}
+# We first define the two functions
+
+lin.mod <- function(x){
+  reg.1$coefficients[1] + reg.1$coefficients[2]*x
 }
 
-logit.mod <- function(x) {
-  1 / (1 + exp(-(logit.1$coefficients[1] + logit.1$coefficients[2] * x)))
+#since the results are targeting "No" we subtract from 1 the prob to get
+## prediction for class = 1
+logit.mod <- function(x){
+  (1- 1 / (1 + exp(-(logit.1$finalModel$coefficients[1] +  logit.1$finalModel$coefficients[2]*x))))
 }
 
 toy.df %>% 
   ggplot(aes(x = Income, y = Personal.Loan)) +
-  geom_jitter(width = 0.01, height = 0.02, alpha = 0.1) +
+  geom_jitter(width=0.01, height=0.02, alpha=0.1) +
   geom_function(fun = lin.mod, color = "blue") +
   geom_function(fun = logit.mod, color = "red") +
-  labs(
-    x = "Income (in $000s)",
-    y = "Personal Loan"
-  )
+  labs(x = "Income in '000s",
+       y = "Personal Loan")
+  
 ```
 
-------------------------------------------------------------------------
+|  |
+|----|
+| \### Student Exercise 1 — Conceptual check Q: Why is the blue (linear) curve problematic as a probability model? |
+| Q: List two concrete issues visible in the plot. |
 
-### 🧠 Student Exercise 1 — Conceptual check
+What we notice is that while the linear probability model had probability estimates which were less than 0, the predicted probabilities in the logit model were between 0 to 1.
 
-```{r}
-#| eval: false
+### Logistic Regression: full model
 
-# Why is the blue (linear) curve problematic as a probability model?
-# List two concrete issues visible in the plot.
-```
+In general, the *logistic response function* is given by:
 
-------------------------------------------------------------------------
+$$p = \frac{1}{1 + \exp^{-(\beta_0 + \beta_1 x_1 + \beta_2 x_2 \dots + \beta_K x_K)}}$$
 
-## Logistic regression: general form
+If we define odds of success as: $$Odds( Y = 1) = \frac{p}{1-p}$$
 
-In general, the logistic response function is:
+Then, with some transformation, p equals: $$p = \frac{odds}{1+ odds}$$
 
-\[ p = \frac{1}{1 + \exp^{-(\beta_0 + \beta_1 x_1 + \dots + \beta_K x_K)}}\]
+Substituting the above expression into our logistic response function, we can obtain:
 
-Define the **odds of success** as:
+$$ Odds( Y = 1) = \exp^{\beta_0 + \beta_1 x_1 + \beta_2 x_2 \dots + \beta_K x_K} $$ Or, taking log on both sides, $$ \log(odds) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 \dots + \beta_K x_K$$
 
-\[ Odds(Y = 1) = \frac{p}{1 - p}\]
+This is the equation of the standard form of the logistic model that is estimated by `glm()` under the option of `family = "binomial"`.
 
-Taking logs:
-
-\[ \log(odds) = \beta\_0 + \beta\_1 x_1 + \dots + \beta\_K x_K\]
-
-This log-odds formulation is what `glm()` estimates when `family = "binomial"`.
-
-------------------------------------------------------------------------
-
-## Full logistic regression model
-
-### Data preparation
+Let us now estimate our model on the full dataset.
 
 ```{r}
+
 bank.df <- mlbadata::UniversalBank
-bank.df <- bank.df[, -c(1, 5)]  # Drop ID and ZIP code
+bank.df <- bank.df[ , -c(1, 5)]  # Drop ID and zip code columns.
+# treat Education as categorical 
+bank.df$Education <- factor(bank.df$Education, levels = c(1, 2, 3), 
+                            labels = c("Undergrad", "Grad", "Adv/Prof"))
 
-bank.df$Education <- factor(
-  bank.df$Education,
-  levels = c(1, 2, 3),
-  labels = c("Undergrad", "Grad", "Adv/Prof")
-)
-
-bank.df$Personal.Loan <- factor(
-  bank.df$Personal.Loan,
-  levels = c(0, 1),
-  labels = c("No", "Yes")
-)
+bank.df$Personal.Loan <- factor(bank.df$Personal.Loan, 
+                                levels = c(1,0),
+                                labels = c("Yes", "No"))
 
 glimpse(bank.df)
-```
-
-### Train–validation split
-
-```{r}
+# partition data
 set.seed(1111)
-
-train.index <- createDataPartition(
-  bank.df$Personal.Loan,
-  p = 0.8,
-  list = FALSE
-)
-
+train.index <- createDataPartition(bank.df$Personal.Loan, 
+                                   p = 0.8,
+                                   list = F)  
 train.df <- bank.df[train.index, ]
-valid.df <- bank.df[-train.index, ]
+test.df <- bank.df[-train.index, ]
+
 ```
 
-------------------------------------------------------------------------
-
-## Estimating the logistic regression
+Let's create full-rank dummy variables for the education category.
 
 ```{r}
-logit.reg <- glm(
-  Personal.Loan ~ .,
-  data = train.df,
-  family = "binomial"
-)
+dumvar <- dummyVars(Personal.Loan ~ .,
+                    data = bank.df,
+                    fullRank = TRUE)
+
+```
+
+Now, generate the training and testing dataset for X and y
+
+```{r}
+X_train <- predict(dumvar, newdata = train.df) |> as_tibble()
+X_test <- predict(dumvar, newdata = test.df) |> as_tibble()
+
+y_train <- train.df$Personal.Loan
+y_test <- test.df$Personal.Loan
+```
+
+### Estimating the logsitical regression model
+
+Here, we are not doing any tuning of hyper-parameters. So we will not use any resampling procedures. We will run our model and predict the class probabilities on the test set. We will then use some model evaluation metrics to assess the quality of the classification.
+
+We will first define the `trainControl()` function.
+
+```{r}
+fitControl <- trainControl( method = "none",
+                       classProbs = TRUE,
+                      summaryFunction = twoClassSummary)                   
+```
+
+```{r}
+logit.reg <- train(y = y_train,
+                   x = X_train,
+                   trControl = fitControl,
+                   method = "glm",
+                   family = "binomial"
+                   )
 
 summary(logit.reg)
-tidy(logit.reg)
+
+
+```
+
+The estimates give us the impact of a unit change in the x variable on *log odds* of **rejecting** a personal loan. For interpretation, we obtain the odds ratios.
+
+```{r}
+options(scipen = 999) #R default is (scipen = 0)
+options(digits = 7) # R default is (digits = 7)
+tidy(logit.reg$finalModel, exponentiate = T)
+
+
+options(scipen = 0)
+options(digits = 7)
+
+#We can save the exponentiated coefficient estimates are 
+result.1 <- tidy(logit.reg$finalModel, exponentiate = T)
+
+result.1 |> 
+  mutate(estimate = round(estimate,4),
+         p.value = round(p.value, 4))
 ```
 
 ------------------------------------------------------------------------
 
-### 🧠 Student Exercise 2 — Interpretation
+### Student Exercise 2 — Interpretation
+
+Q1. Pick any three continuous variables. Interpret the odds-ratios. Pay attention to the way `glm` expects the target class.
+
+Q2. What is the interpretation of the estimates of the educational variables?
+
+------------------------------------------------------------------------
+
+A number greater than 1 indicates that the factor increases the odds of the sample being in the target class.
+
+### Classifying the outcome for the train and test sets
+
+We will assess the performance using both class-based and probability-based metrics.
+
+Just as a recap, the following metrics can be obtained from `yardstick()`:
+
+| **Metric**     | **Function**   | **Input Required**           |
+|----------------|----------------|------------------------------|
+| **Accuracy**   | `accuracy()`   | Predicted Class (`yes`/`no`) |
+| **F1 Score**   | `f_meas()`     | Predicted Class (`yes`/`no`) |
+| **Precision**  | `precision()`  | Predicted Class (`yes`/`no`) |
+| **AUC-ROC**    | `roc_auc()`    | **Probability** (0.0 to 1.0) |
+| **Lift Curve** | `lift_curve()` | **Probability** (0.0 to 1.0) |
+
+Predictions: Remember the predictions are a probability. Give the option `type = "prob"` to obtain the probabilities. First the training set.
+
+```{r}
+predProb <- predict(logit.reg, type = "prob")
+predClass <- predict(logit.reg,  type = "raw") 
+train_result <- cbind(y_train, predProb, predClass)
+
+
+```
+
+1.  Confusion Matrix
+
+```{r}
+confusionMatrix(data = predClass, reference = y_train )
+```
+
+------------------------------------------------------------------------
+
+### Student Exercise 3 — Interpretation
+
+Q. What happens when we change the cutoff?
+
+```{r}
+confusionMatrix(data = factor(ifelse(predProb$Yes>0.25, "Yes", "No"),
+                              levels = c("Yes", "No")),
+                reference = y_train)
+```
+
+Now, increase the cut-off to 0.75
 
 ```{r}
 #| eval: false
-
-# Pick one continuous predictor.
-# How do you interpret its coefficient in terms of:
-# (a) log-odds
-# (b) odds
+# Copy the code above and make the change in cutoff.
 ```
+
+Q What do you observe?
 
 ------------------------------------------------------------------------
 
-## Odds ratios
-
-To aid interpretation, we exponentiate the coefficients.
+Now we work with the test set.
 
 ```{r}
-result.1 <- tidy(logit.reg, exponentiate = TRUE)
 
-result.1 %>% 
-  mutate(
-    estimate = round(estimate, 2),
-    p.value = round(p.value, 4)
-  )
+
+
+
+predProb_test <- predict(logit.reg, newdata = X_test, type = "prob")
+predClass_test <- predict(logit.reg, newdata = X_test, type = "raw")
+result_test <- cbind(y_test, predProb_test, predClass_test)
+
+confusionMatrix(data = predClass_test, reference = y_test)
 ```
 
-A value greater than 1 indicates that an increase in the predictor increases the odds of being in class "Yes".
-
-------------------------------------------------------------------------
-
-### 🧠 Student Exercise 3 — Odds ratios
+Let's now obtain the lift curve and the ROC curve.
 
 ```{r}
-#| eval: false
+lift_test <- result_test |> 
+    lift_curve(truth = y_test, Yes)
 
-# Identify one predictor with an odds ratio greater than 1
-# and one with an odds ratio less than 1.
-# Explain what each means in plain language.
+autoplot(lift_test) +
+  scale_x_continuous(breaks = seq(0,100,10))
 ```
-
-------------------------------------------------------------------------
-
-## Predicted probabilities
-
-Predictions from a logistic regression are **probabilities**, not classes.
 
 ```{r}
-trainpred.df <- augment(
-  logit.reg,
-  data = train.df,
-  type.predict = "response"
-)
-
-head(trainpred.df)
+result_test |> 
+  roc_auc(truth = y_test, Yes) 
 ```
 
-Alternatively:
+To plot the ROC curve:
 
 ```{r}
-logit.reg.trpred <- predict(
-  logit.reg,
-  type = "response"
-)
-
-head(logit.reg.trpred)
+roc_data <- result_test |> 
+  roc_curve(truth = y_test, Yes) |> autoplot()
 ```
-
-------------------------------------------------------------------------
-
-### 🧠 Student Exercise 4 — Classification logic
-
-```{r}
-#| eval: false
-
-# Suppose we use a cutoff of 0.5.
-# How would predicted probabilities be converted into class labels?
-# What happens if we lower the cutoff to 0.25?
-```
-
-------------------------------------------------------------------------
-
-## Wrap-up
-
-Logistic regression models probabilities through a nonlinear transformation that ensures valid predictions between 0 and 1. Coefficients are interpreted through log-odds and odds ratios, and classification decisions depend critically on the choice of probability cutoff.
-
-In the next module, we will evaluate logistic models using confusion matrices, ROC curves, and lift charts.

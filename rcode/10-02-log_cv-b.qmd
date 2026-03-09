@@ -31,6 +31,10 @@ library(broom)
 library(mlbadata)
 ```
 
+
+
+
+
 Let us now estimate our model on the full dataset.
 
 ```{r}
@@ -100,6 +104,9 @@ logit.reg <- train(y = y_train,
 ```
 
 ------------------------------------------------------------------------
+
+
+
 
 ## Test-set predictions (baseline model)
 
@@ -237,6 +244,8 @@ logit.enet <- train(
 coef(logit.enet$finalModel, , s = logit.enet$bestTune$lambda)
 ```
 
+
+
 ## Test-set predictions (enet)
 
 ```{r}
@@ -250,9 +259,12 @@ logit.enet_results <- bind_cols(
 
 ```
 
+
 ### Random search.
 
 Let us also do a random search for the hyperparameters. This is done by setting `search = "random"` in the `trainControl()` function and then setting the `tuneLength = n` where n is the number of values to search over.
+
+
 
 ```{r}
 set.seed(1111)
@@ -283,12 +295,12 @@ logit.enetrand <- train(
 
 summary(logit.enetrand)
 ```
-
 To obtain the coefficient estimates from the best tuned model:
 
 ```{r}
 coef(logit.enetrand$finalModel, s = logit.enetrand$bestTune$lambda)
 ```
+
 
 ```{r}
 logit.enetrand_results <- bind_cols(
@@ -359,7 +371,7 @@ This framework generalizes directly to most other classification models to be di
 
 ## Final Step
 
-Once we have identified our model, we will run the model on our entire dataset using the hyperparameter values from the best tuned result. The results from this model will be deployed to new data. We see that our enet model was the best model among the four algorithms that we ran.
+Once we have identified our model, we will run the model on our entire dataset using the hyperparameter values from the best tuned result. The results from this model will be deployed to new data. We see that our enet model was the best model among the four algorithms that we ran. 
 
 ```{r}
 logit.enet$bestTune
