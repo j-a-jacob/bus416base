@@ -163,7 +163,7 @@ Next, we define the tuning grid for they hyperparameters.
 ```{r}
 lassoGrid <- expand.grid(
   alpha = 1,
-  lambda = 10^seq(-3, 5, length.out = 100)
+  lambda = 10^seq(-4, 2, length.out = 100)
 )
 ```
 
@@ -189,6 +189,8 @@ lasso_fit
 
 ```{r}
 lasso_fit$bestTune
+
+
 coef(lasso_fit$finalModel, s = lasso_fit$bestTune$lambda)
 ```
 
@@ -213,7 +215,7 @@ Now we repeat the process with (\alpha = 0).
 ```{r}
 ridgeGrid <- expand.grid(
   alpha = 0,
-  lambda = 10^seq(-3, 5, length.out = 100)
+  lambda = 10^seq(-4, 2, length.out = 100)
 )
 
 set.seed(14)
@@ -262,8 +264,8 @@ Elastic Net tunes **both** (\alpha) and (\lambda).
 
 ```{r}
 enetGrid <- expand.grid(
-  alpha = seq(0, 1, 0.1),
-  lambda = 10^seq(-3, 5, length.out = 100)
+  alpha = seq(0, 1, by = 0.1),
+  lambda = 10^seq(-4, 2, length.out = 100)
 )
 ```
 
@@ -309,9 +311,9 @@ summary(resampResults)
 
 model_eval <- as_tibble(cbind(model = c("lasso", "ridge", "enet"),
     rbind(
-      forecast::accuracy(predict(lasso, newdata = X_test), y_test),
-      forecast::accuracy(predict(ridge, newdata = X_test), y_test),
-      forecast::accuracy(predict(enet, newdata = X_test), y_test)
+      forecast::accuracy(predict(lasso_fit, newdata = X_test), y_test),
+      forecast::accuracy(predict(ridge_fit, newdata = X_test), y_test),
+      forecast::accuracy(predict(enet_fit, newdata = X_test), y_test)
     )))
 
 model_eval
