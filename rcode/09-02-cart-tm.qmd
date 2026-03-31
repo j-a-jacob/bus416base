@@ -1,0 +1,458 @@
+---
+title: "ch09-02-cart-tm"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Learning Objectives
+
+By the end of this chapter, you should be able to:
+
+* Understand the `tidymodel()` framework
+* Build a classification tree using `parsnip()`
+* Use `recipies()` for pre processing pipelines
+* Use `resamples()` for cv
+* Tune hyperparameters using `dials()`
+* Assess models using `yardstick()`
+
+---
+
+
+
+```{r}
+library(caret)
+library(tidyverse)
+library(skimr)
+library(rpart.plot)
+library(mlbadata)
+library(yardstick)
+library(tidymodels)
+```
+
+---
+
+## Example: Personal Loan Acceptance (Realistic Case)
+
+
+
+We will create data partition and do pre-processing using the tidy models framework. We will do a 60-40 split stratified random sample.
+
+
+```{r}
+bank.df <- mlbadata::UniversalBank |> 
+  select(-ID, -ZIP.Code) |> 
+  mutate(
+    Loan = factor(Personal.Loan,
+                  levels = c(1, 0),
+                  labels = c("Yes", "No")) 
+  )|> 
+      select(-Personal.Loan)
+```
+
+
+### Data Partition using `rsample`
+
+```{r}
+set.seed(1)
+bank_split <- bank.df |> 
+                  initial_split(prop = 0.6, 
+                               strata = Loan)
+bank_split
+```
+`bank_split()` is an instance of the `rspit` object that contains the split information in the `$in_id` and `out_id` sub-objects. This `rsplit` object will also be used for k-fold cv. There are two functions that are applied to this list of split indices.
+
+```{r}
+
+bank_train <- training(bank_split)
+bank_test <- testing(bank_split)
+
+```
+
+
+### Pre-Processing using `recipes`
+
+We will now do pre-processing on the training set and apply those on the test set. These transformations will ultimately need to be applied to the new data for scoring as well. 
+
+ Tidymodels has a package called `recipies`, which can be used for this. In this package, various pre-processing routines can be added using the `step_*()` method. Other `dplyr` helper functions can be used to select columns.
+
+The starting point is the `recipe()` function that takes two arguments, data and model formula. Then we will pipe this into the various steps discussed above. We will also use some dplyr functions to select factor variables.
+
+Notice the structure of the data. We have mixed data, where some factors variables are coded as numeric. Suppose we also want to convert the numeric variables - `Experience, Incomke, Family, CCAvg and Mortgage` - to their z scores but not standardize the dummy variables. We will do this processing in three steps.
+
+There is also an important question of whether we even need dummy variables. The answer depends on the modelling approach being taken. 
+
+- For logistical regression or linear regression, do full-rank encoding
+- For CART, leave the variables as factors. This allows for interpretability. 
+- When we will do Random Forest and Boosted Trees, we will use one-hot encoding
+- For neural networks, one-hot encoding.
+
+1. Correctly code the factor variables as factor variables. Education has three levels, 1, 2 and 3, while others have 0, 1. We will make 0 as the base level and 1 as the last level. We will make use of a `dplyr` helper function.
+
+2. Next, standardize all numeric variables.
+
+3. Dummy step: Based on the model. With full rank encoding, the first level gets dropped. Thus, we will keep our variable of interest, eg. `Online` as 0, 1 and then in full-rank encoding, 0 will get dropped.
+
+The important point to understand here is that pre-processing is tied to the models we will be running. If we are running single decision trees, we will do Step 1. If we are doing logistic regression, we will do full-rank encoding in Step 3. For `xgboost`, we will do one hot-encoding.
+
+Tidymodels have a package called `workflow` that helps keep the model and recipe steps connected and they can be then be applied to test or new data.
+
+Here, we will do steps 1 and leave Steps 2 and  3 for when we work with ensemble methods.
+
+
+
+
+```{r}
+cart_recipe <- 
+  recipe(Loan ~ ., data = bank_train) |> 
+  step_mutate(across(c(CCAvg, Securities.Account, CD.Account, Online, CreditCard),
+                     ~factor(.x, levels = c(0,1), labels = c("No", "Yes")))) |> 
+  step_mutate(Education = factor(Education, levels = c(1, 2, 3),
+                                 labels = c("UGrad", "Grad", "Prof")))
+
+cart_recipe
+```
+
+This lists two operations that will be done to the dataset. The reason we converted the variables to factors is that some algorithms need the continuous variables to be conveted to z-scores. Our next step would the standaization step but it will avoid changing the dummy variables to their standardized values.
+
+```{r}
+
+cart_recipe_z <- 
+  recipe(Loan ~ ., data = bank_train) |> 
+  step_mutate(across(c(CCAvg, Securities.Account, CD.Account, Online, CreditCard),
+                     ~factor(.x, levels = c(0,1), labels = c("No", "Yes")))) |> 
+  step_mutate(Education = factor(Education, levels = c(1, 2, 3),
+                                 labels = c("UGrad", "Grad", "Prof"))) |> 
+  step_normalize(all_numeric_predictors())
+
+cart_recipe_z
+```
+
+The `all_numeric_predictors()` is a helper function that can only be used inside a recipe. There are some other such special helper functions- `all_numeric()`, `all_outcomes()`, `all_numeric()`, `all_predictors()`, `all_integer()` etc.
+
+
+---
+
+## Full vs Default Tree
+
+Let us start by running the full tree to this data on the training set.
+
+The `rpart()` method has a control function, `rpart.control()` with some preset default values. These values are passed on to the `rpart` call.
+
+The `rpart.control()` default values are:
+
+```{r  eval= FALSE}
+rpart.control(minsplit = 20, minbucket = round(minsplit/3), cp = 0.01,
+  maxcompete = 4, maxsurrogate = 5, usesurrogate = 2, xval = 10,
+  surrogatestyle = 0, maxdepth = 30, ...)
+```
+
+Tuning is generally done by changing `minsplit` which is the min number of obs in a node for it to be split, `cp` - complexity parameter, which imposes a penalty to the number of nodes and `maxdepth` that is, the max number of splits a tree can have.
+
+```{r}
+full.tree.rpart <- rpart(Loan ~ ., 
+                        data = train.df,
+                        method = "class",
+                        control = rpart.control(cp = 0, minsplit = 1))
+
+rpart.plot(full.tree.rpart, extra = 1)
+```
+
+As we can see, the above tree is pretty nonsensical. It will do a good job of classifying all our training records but not do a good job of classifying new records.
+
+This crazy size of the tree can be addressed by pruning the tree. The default tree approach in `caret` is to prune the tree based on `Cp`, the complexity parameter. Basically, if accuracy does not improve beyond a certain threshold determined by Cp, the split at that node will not take place. Let us first run a basic pruned tree without any further parameter tuning. Below, we search for the Cp that provides the most accuracy in the training set.
+
+
+```{r}
+
+tree.2.train <- train(Loan ~ ., 
+                data = train.df,
+                method = "rpart2",
+                tuneLength = 30)
+                
+tree.2.train
+tree.2.train$finalModel
+rpart.plot(tree.2.train$finalModel, fallen.leaves = T, extra = 2)
+```
+
+The default tree produced natively by rpart.
+
+```{r}
+# Default tree from rpart
+def.tree.rpart <- rpart(Loan ~ ., data = train.df, method = "class")
+rpart.plot(def.tree.rpart, type =2, extra = 1 , fallen.leaves = F)
+```
+
+
+The default tree is smaller because `rpart` applies **implicit pruning**.
+
+### Student Exercise 3 (Hands-on)
+
+```{r eval=FALSE}
+# Compare training vs test accuracy for:
+# 1. full.tree.loan
+# 2. def.tree
+```
+
+---
+Compare the performance of the full tree with the rpart default trees for both, training and test sets.
+
+```{r}
+
+pred.Loan.full <- predict(full.tree.rpart, data = train.df, type = "class")
+confusionMatrix(pred.Loan.full, train.df$Loan)
+```
+
+```{r}
+#Now on the test set
+pred.Loan.full.test <- predict(full.tree.rpart, newdata = test.df, type = "class")
+confusionMatrix(pred.Loan.full.test, test.df$Loan)
+```
+
+```{r}
+# test set confusion matrix for the default tree
+pred.Loan.def1.test <- predict(def.tree.rpart , newdata = test.df, type = "class")
+confusionMatrix(pred.Loan.def1.test, test.df$Loan)
+```
+
+### Pruning a fully grown tree
+
+**1. Minimum error tree**
+
+We see that the default tree has slightly better accuracy than the full tree. The algorithm, however, stops the tree at some predetermined parameter values.
+
+Another option to avoid overfiting a tree is to grow the full tree and then prune it to the node that had the least error. These values are already provided in the return output of the full tree `full.tree.train$cptable`.
+
+```{r}
+full.tree.rpart$cptable
+```
+
+Obtain the Cp at which the lowest error happens programatically:
+
+```{r}
+cpmin <-  full.tree.rpart$cptable[which.min(full.tree.rpart$cptable[, "xerror"]), "CP"]
+cpmin
+```
+
+This `mincp` value can be used to prune the tree.
+
+```{r}
+full.tree.prune <- prune(full.tree.rpart, cp = cpmin)
+prp(full.tree.prune, type = 1, extra = 1)
+```
+
+### 2. Best-pruned Tree
+
+Looking at the `cptable`, the standard deviation of min error is:
+
+```{r}
+stdmin <- full.tree.rpart$cptable[which.min(full.tree.rpart$cptable[, "xerror"]), "xstd"]
+stdmin
+```
+
+We can compute the error within this one standard deviation of the error and choose the simpler tree which has error within this range. In this case:
+
+```{r}
+se1 <- min(full.tree.rpart$cptable[, "xerror"]) + stdmin
+se1
+```
+
+Our tree with 8 splits has error greater than the previous value. Thus, our minimum error tree is also our best-pruned tree.
+
+
+
+
+
+----
+
+### Classification Tree using `tidymodels`
+
+The `tidymodels` ecosystem provides a modular way to improve classification trees. As noted, basic trees are sensitive to sampling; a small change in the data can lead to a completely different tree. They are "unstable."
+
+Furthermore, the base `rpart` engine doesn't tune hyperparameters by default. While `caret` used a default bootstrap of 25, `tidymodels` encourages us to be explicit about our resampling and tuning grids.
+
+```{r}
+#| label: setup
+library(tidymodels)
+library(rpart.plot)
+
+# Define the model specification using the 'parsnip' package
+tree_spec <- decision_tree(cost_complexity = tune()) |>  
+  set_engine("rpart") |>  
+  set_mode("classification")
+
+# Define a simple bootstrap resampling (mimicking caret's default)
+boot_samples <- bootstraps(train.df, times = 25)
+
+# Tune the model over a default grid of 3 values
+tree_res <- tune_grid(
+  tree_spec,
+  Loan ~ .,
+  resamples = boot_samples,
+  grid = 3
+)
+
+# Select the best parameters and finalize
+best_tree <- tree_res |>  select_best(metric = "roc_auc")
+
+final_tree_wf <- workflow() |>  
+  add_formula(Loan ~ .)  |>  
+  add_model(tree_spec) |> 
+  finalize_workflow(best_tree)
+
+tree_fit <- final_tree_wf |>  fit(train.df)
+```
+
+We can examine this tree using the `extract_fit_engine()` function to get the underlying `rpart` object.
+
+```{r}
+#| label: visualize-tree
+tree_obj <- extract_fit_engine(tree_fit)
+rpart.plot(tree_obj, type = 1, extra = 1)
+```
+
+Let us check its performance on the test set. In `tidymodels`, `predict()` always returns a tibble, making it easy to pipe into metrics.
+
+```{r}
+#| label: test-performance
+test_results <- test.df |> 
+  bind_cols(predict(tree_fit, new_data = test.df))
+
+test_results |>  
+  conf_mat(truth = Loan, estimate = .pred_class)
+```
+
+We could also tune over the **depth** of the tree. This is equivalent to `method = "rpart2"` in `caret`.
+
+```{r}
+#| label: tune-depth
+depth_spec <- decision_tree(tree_depth = tune()) |>  
+  set_engine("rpart") |>  
+  set_mode("classification")
+
+depth_res <- tune_grid(
+  depth_spec,
+  Loan ~ .,
+  resamples = boot_samples,
+  grid = tibble(tree_depth = seq(1, 15)) # tuning over 15 sizes
+)
+
+# Finalize and plot
+best_depth <- depth_res |>  select_best(metric = "roc_auc")
+depth_fit <- workflow() |>  
+  add_formula(Loan ~ .) |>  
+  add_model(depth_spec) |>  
+  finalize_workflow(best_depth) |>  
+  fit(train.df)
+
+rpart.plot(extract_fit_engine(depth_fit), type = 1, extra = 2)
+```
+
+**One drawback however is that these trees depend on the initial random split of the sample. Instability can be avoided using k-fold cross-validation.**
+
+`tidymodels` handles this via `vfold_cv()`. We will also switch to the **ROC** metric for tuning and search over a grid of 10 values for $C_p$.
+
+```{r}
+#| label: cross-validation-setup
+# 10-fold CV repeated 3 times
+cv_folds <- vfold_cv(train.df, v = 10, repeats = 3, strata = Loan)
+
+# Define Model and Workflow
+cv_spec <- decision_tree(cost_complexity = tune()) |>  
+  set_engine("rpart") |>  
+  set_mode("classification")
+
+cv_wflow <- workflow() |>  
+  add_formula(Loan ~ .) |>  
+  add_model(cv_spec)
+
+# Run Tuning using ROC AUC
+cv_res <- tune_grid(
+  cv_wflow,
+  resamples = cv_folds,
+  grid = 10,
+  metrics = metric_set(roc_auc)
+)
+
+# Finalize the 'best' version
+best_cv_tree <- cv_res |>  select_best(metric = "roc_auc")
+final_cv_fit <- cv_wflow |>  
+  finalize_workflow(best_cv_tree) |>  
+  fit(train.df)
+
+rpart.plot(extract_fit_engine(final_cv_fit), type = 2, extra = 2)
+```
+
+### The 1-SE Rule
+In `caret`, you used `method = "rpart1SE"`. In `tidymodels`, this is a post-tuning selection strategy using `select_by_one_std_err()`. This chooses the simplest model that is within one standard error of the best performing model.
+
+```{r}
+#| label: one-se-rule
+best_1se_tree <- cv_res |>  
+  select_by_one_std_err(metric = "roc_auc", -cost_complexity)
+
+final_1se_fit <- cv_wflow |>  
+  finalize_workflow(best_1se_tree) |>  
+  fit(train.df)
+
+rpart.plot(extract_fit_engine(final_1se_fit), type = 1, extra = 2, roundint = FALSE)
+```
+
+**Evaluating the performance on the test set**
+
+We'll gather the probabilities and classes for all three optimized trees.
+
+```{r}
+#| label: combine-results
+
+# Helper function to get class + prob
+get_results <- function(fit_obj, model_name) {
+  test.df |> 
+    select(Actual = Loan) |> 
+    bind_cols(predict(fit_obj, test.df)) |> 
+    bind_cols(predict(fit_obj, test.df, type = "prob")) |> 
+    mutate(model = model_name)
+}
+
+results_data <- bind_rows(
+  get_results(final_cv_fit, "Tree_Cp"),
+  get_results(depth_fit, "Tree_depth"),
+  get_results(final_1se_fit, "Tree_1se")
+)
+```
+
+
+ROC Curve
+
+```{r}
+auc_data <- results_data %>% 
+  group_by(model) %>% 
+  roc_curve(Actual, .pred_Yes)
+autoplot(auc_data)
+```
+
+Lift Curves
+
+We can also plot the lift charts. Note that we need to get the actual class and predicted probability in the same dataframe for `lift_curve()` in `yardstick` package.
+
+```{r}
+
+data_lift <- results_data %>% 
+  group_by(model) %>% 
+  lift_curve(Actual , .pred_Yes)
+autoplot(data_lift)
+```
+
+---
+
+---
+
+## Takeaways
+
+* **Modular Specs:** We separate the model (parsnip) from the data (recipes/formulas).
+* **Explicit Tuning:** `tune_grid()` gives us full control over how we search the parameter space.
+* **Selection Rules:** `select_by_one_std_err()` provides the same "pruning" logic as `rpart1SE` but with more transparency.
+
+Would you like me to show you how to swap the `add_formula()` step for a **recipe**? This would allow you to handle data cleaning (like scaling or dummy variables) more efficiently as you move toward Random Forests.
