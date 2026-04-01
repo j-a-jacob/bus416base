@@ -4,38 +4,24 @@ author: "Dr. Jeff Jacob"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-## Learning Objectives
-
 By the end of this chapter, you should be able to:
 
-* Explain why single decision trees are unstable
-* Describe how ensemble methods reduce variance and improve accuracy
-* Implement bagging, random forests, and boosting using `caret`
-* Tune ensemble models using cross-validation and ROC
-* Compare ensemble models using AUC, ROC curves, and lift charts
-* Interpret variable importance from ensemble models
-
----
+-   Explain why single decision trees are unstable
+-   Describe how ensemble methods reduce variance and improve accuracy
+-   Implement bagging, random forests, and boosting using `caret` method
+-   Tune ensemble models using cross-validation and ROC
+-   Compare ensemble models using AUC, ROC curves, and lift charts
+-   Interpret variable importance from ensemble models
 
 ## From Single Trees to Ensembles
 
-In the previous chapter, we saw that **classification trees are intuitive but unstable**.
-Small changes in the training data can lead to very different trees.
-
-Ensemble methods improve predictive performance by **combining many trees** instead of relying on just one.
+Thus far, we have looked at single trees. The advantage is that one can derive simple rules to classify new records. A big disadvantage is that single trees can be sensitive to the variables over which the first split happens. Better performance can be obtained when results are combined from multiple trees.
 
 We will study three major ensemble approaches:
 
-1. **Bagging** (Bootstrap Aggregation)
-2. **Random Forests**
-3. **Boosting** (AdaBoost and Gradient Boosting)
-
----
-
-
+1.  **Bagging** (Bootstrap Aggregation)
+2.  **Random Forests**
+3.  **Boosting** (AdaBoost and Gradient Boosting)
 
 ```{r}
 library(caret)
@@ -48,8 +34,7 @@ library(mlbadata)
 library(yardstick)
 ```
 
-
-## Data Setup: Universal Bank
+Let's set up the data
 
 ```{r}
 bank.df <- mlbadata::UniversalBank
@@ -66,12 +51,12 @@ bank.df <- bank.df %>%
 str(bank.df)
 #Do a 60-40 split
 set.seed(1)
-indTrain <- createDataPartition(bank.df$Loan, p = 0.6, times = 1, list = F)
+indTrain <- createDataPartition(bank.df$Loan, p = 0.6,  list = F)
 train.df <- bank.df[indTrain,]
 test.df <- bank.df[-indTrain,]
 ```
 
-Thus far, we have looked at single trees. The advantage is that one can derive simple rules to classify new records. A big disadvantage is that single trees can be sensitive to the variables over which the first split happens. Better performance can be obtained when results are combined from multiple trees. One of the first implementations of this is bagging. Bagging refers to ***B***ootstrapped ***A*****gg**regation
+One of the first implementations of this is bagging. Bagging refers to ***B***ootstrapped ***A*****gg**regation
 
 ## Bagged Tree
 
@@ -86,9 +71,6 @@ The basic idea of bagged trees is the following:
 4.  Majority class is assigned to the record.
 
 Bagged trees are shown to have a better predictive performance than unbagged trees. Let us make a default bagged tree using `caret` package. Note that there in no hyperparameter tuning with bagged trees in caret.
-
-### Bagged Trees in `caret`
-
 
 ```{r}
 cntrl <- trainControl(method = "repeatedcv",
@@ -127,14 +109,6 @@ The bagged trees however can also suffer from the a similar drawback as the sing
 
 This tree correlation can be reduced by adding randomness to the construction of the trees.
 
-
-### Student Exercise 1 (Conceptual)
-
-* Why does bagging reduce variance but not bias?
-* Why might bagging still overuse the same predictors?
-
----
-
 ## Random Forests
 
 In random forests, multiple samples are drawn like in bagging but at each split in constructing every tree, a subset of m predictors are randomly chosen. Typically, this number is one-third of the total number of predictors.
@@ -144,8 +118,6 @@ In `caret`, this number can become a tuning parameter with the number of variabl
 **A random forest built over several tuning parameters and repeated 10 fold cross-validation will take a few hours to run.** One quick way to reduce time is to limit the number of cross validation folds and repeats. One could also limit the number of tuning parameter values.
 
 If these fixes are not desirable, the training model should be run taking advantage of parallel processing.
-
-### Random Forests in `caret`
 
 ```{r echo=FALSE, eval=FALSE}
 cntrl <- trainControl(method = "repeatedcv",
@@ -167,7 +139,10 @@ tree.rf <- train(Loan ~ .,
 
 tree.rf
 tree.rf$results
+plot(tree.rf)
 ```
+
+Let's evaluate the performance on the test set.
 
 ```{r}
 ensemble_rf <- bind_cols(
@@ -180,33 +155,16 @@ ensemble_rf <- bind_cols(
 ensemble_rf |> roc_auc(Actual, predProb)
 ```
 
-### Variable Importance
+Though ensemble methods do not give us clear rules like the individual trees, we can obtain a variable importance plot that tells us the relative importance of the various predictors.
 
 ```{r}
 varImp(tree.rf)
 plot(varImp(tree.rf))
 ```
 
-### Student Exercise 2 (Interpretation)
-
-* Why does limiting `mtry` decorrelate trees?
-* Which variables dominate the random forest?
-* Why might importance differ from a single tree?
-
----
-
 ## Boosted Trees
 
 A third approach to ensembles in constructing classification tree is boosting.
-
-Boosting takes a different approach.
-
-Instead of fitting trees independently:
-
-* trees are built **sequentially**
-* each tree focuses on **previously misclassified observations**
-
-This produces **low-bias, high-accuracy** models.
 
 The basic idea behind the AdaBoost, which is the most common implementation of boosting, is to generate a sequence of weak classifiers. At each stage though, the records that are incorrectly classified are given more weight while those correctly classified are given less weigh. Thus, the algorithm learns from miss-classified records at each stage, focusing on difficult to classify records. The overall
 
@@ -221,8 +179,8 @@ The steps in the algorithm are
 
     3.  Compute each tree's weight (say) as $$\alpha_m = log((1-err_m)/err_m) $$
 
-    4.  Update weight as $$ w_{i}^{m+1} = w_i \cdot exp[\alpha _m \cdot I(y_i \ne G_m(x_i))], i = 1, 2, \ldots N  $$
-4.  Output \$ G(x) = sign \left[\sum_{m=1}^{M}\alpha_m G_m(x)\right] \$
+    4.  Update weight as $$ w_{i}^{m+1} = w_{i}^{m} \cdot exp[\alpha _m \cdot I(y_i \ne G_m(x_i))], i = 1, 2, \ldots N  $$
+4.  Output $$ G(x) = sign \left[\sum_{m=1}^{M}\alpha_m G_m(x)\right] $$
 
 As seen above, first a weak classifier is run with each observation given equal weight. The expression $$I(y_i \ne G_m(x_i))$$ returns 1 for an incorrect classification and 0 for a correct one. Set 3.2 calculates the weighted error. In Step 3.3, the classifier's weight or say is calculated in a manner that more acurate classifiers are given a higher weight. Finally, in 3.4 individual observations weights are updated by $$ exp(\alpha_m) $$ if the prediction was an error and 1 if correct. Thus, incorrect predictions are given a greater weight.
 
@@ -230,20 +188,25 @@ For the final output, a weighted linear combination of all M classifiers is used
 
 Some things to note are that since `Adaboost` learns from the previous trees, it needs to be sequential and can not be implemented in parallel processing.
 
-
----
-
-## AdaBoost
-
-AdaBoost assigns higher weight to misclassified observations at each iteration.
-
-Key tuning parameters in `caret`:
-In `caret` there are several implementations of `Adaboost`. Here, we will use the method `ada`. Tunig parameters are:
+In `caret` there are several implementations of `Adaboost`. Here, we will use the method `ada`. Tuning parameters are:
 
 -   `iter` (#Trees)
 -   `maxdepth` (Max Tree Depth)
 -   `nu` (Learning Rate)
 
+Then rotate with `method = "AdaBoost.M1"` with tuning parameters-
+
+-   `mfinal` (# trees)
+
+-   `maxdepth`
+
+-   `coeflearn`
+
+From the documentation:
+
+```         
+if 'Breiman'(by default), $$alpha=1/2ln((1-err)/err)$$ is used. If 'Freund' alpha=ln((1-err)/err) is used. In both cases the AdaBoost.M1 algorithm is used and alpha is the weight updating coefficient. On the other hand, if coeflearn is 'Zhu' the SAMME algorithm is implemented with alpha=ln((1-err)/err)+ ln(nclasses-1).
+```
 
 ```{r}
 cntrl <- trainControl(method = "cv",
@@ -263,6 +226,8 @@ tree.ada <- train(Loan ~ .,
 tree.ada
 ```
 
+Let's see the performance on the test set.
+
 ```{r}
 ensemble_ada <- bind_cols(
   predClass = predict(tree.ada, test.df),
@@ -274,15 +239,44 @@ ensemble_ada <- bind_cols(
 ensemble_ada |> roc_auc(Actual, predProb)
 ```
 
-### Student Exercise 3 (Conceptual)
+Now rotate with `method = "AdaBoost.M1"` with tuning parameters-
 
-* Why must boosting be sequential?
-* Why are weak learners preferred in boosting?
+-   `mfinal` (# trees)
 
----
-## Gradient Boosted Machines (GBM)
+-   `maxdepth`
 
-The next model chosen by caret had a depth of 5 and 150 trees were built. The learning was kept constant at 0.1. One could have specified tuning parameter using the `tuneGrid =` call with more values of the two parameters.
+-   `coeflearn`
+
+```{r}
+cntrl <- trainControl(method = "cv",
+                      number = 5,
+                      classProbs = TRUE,
+                      summaryFunction = twoClassSummary,
+                      allowParallel = FALSE)
+
+set.seed(9876)
+tree.ada.m1 <- train(Loan ~ .,
+                  data = train.df,
+                  method = "AdaBoost.M1",
+                  trControl = cntrl,
+                  tuneLength = 5,
+                  metric = "ROC")
+
+tree.ada.m1
+```
+
+Let's see the performance on the test set.
+
+```{r}
+ensemble_adam1 <- bind_cols(
+  predClass = predict(tree.ada, test.df),
+  predProb  = predict(tree.ada, test.df, type = "prob")$Yes,
+  Actual    = test.df$Loan,
+  model     = "AdaBoost.M1"
+)
+
+ensemble_ada |> roc_auc(Actual, predProb)
+```
 
 **Gradient Boosted Machines**
 
@@ -300,28 +294,24 @@ The model in `caret` is implemented using the `gbm` package with the following t
 
 -   `n.minobsinnode` (Min. Terminal Node Size)
 
-
 ```{r}
-cntrl <- trainControl(method = "cv",
-                      number = 5,
+cntrl <- trainControl(method = "cv", number = 5,
                       classProbs = TRUE,
-                      summaryFunction = twoClassSummary,
+                      summaryFunction =  twoClassSummary,
                       allowParallel = TRUE)
 
+
+ptm <- proc.time()
 set.seed(9876)
-tree.gbm <- train(Loan ~ .,
-                  data = train.df,
-                  method = "gbm",
-                  trControl = cntrl,
-                  tuneLength = 5,
-                  metric = "ROC")
-
+tree.gbm <- train(Loan ~ . , data = train.df,
+                       method = "gbm",
+                       trControl = cntrl,
+                       tuneLength = 5,
+                       metric = "ROC")
+               
+ 
+proc.time() - ptm
 tree.gbm
-```
-
-
-
-```{r}
 
 ensemble_gbm <- bind_cols(predClass = predict(tree.gbm, newdata = test.df),
                       predProb = predict(tree.rf, newdata = test.df, type = "prob")$"Yes",
@@ -334,146 +324,27 @@ ensemble_gbm |>
 
 Regardless, the boosted trees are a very powerful classification tool. What is interesting is that weaker the initial trees, the stronger is the ensemble.
 
-
----
-
-
-## Extreme Gradient Boosting (XGBoost)
-
-**XGBoost** is an optimized and regularized implementation of gradient boosting.  
-It is widely used in industry and data science competitions because it combines:
-
-- strong predictive performance  
-- built-in regularization  
-- efficient handling of large datasets  
-- robustness to multicollinearity  
-
-Compared to standard GBM:
-- XGBoost uses **second-order gradients**
-- includes **L1 and L2 regularization**
-- supports **column subsampling**
-- is computationally optimized
-
----
-
-### XGBoost in `caret`
-
-In `caret`, XGBoost is implemented using the method `"xgbTree"`.
-
-Key tuning parameters include:
-
-- `nrounds` – number of boosting iterations
-- `max_depth` – tree depth
-- `eta` – learning rate
-- `gamma` – minimum loss reduction for splits
-- `colsample_bytree` – fraction of predictors sampled per tree
-- `subsample` – fraction of observations sampled
-- `min_child_weight` – minimum sum of weights in a leaf
-
-Because XGBoost is computationally expensive, we will **limit the tuning grid**.
+Let's combine all the results and obtain the usual lift curve and AUCs
 
 ```{r}
-cntrl <- trainControl(
-  method = "cv",
-  number = 5,
-  classProbs = TRUE,
-  summaryFunction = twoClassSummary,
-  allowParallel = TRUE
-)
-```
+ensemble_results <- bind_rows(ensemble_bag, ensemble_rf, ensemble_ada1, ensemble_adam1 , ensemble_gbm)
 
-```{r}
-xgbGrid <- expand.grid(
-  nrounds = c(100, 200),
-  max_depth = c(3, 6),
-  eta = c(0.05, 0.1),
-  gamma = 0,
-  colsample_bytree = 0.8,
-  min_child_weight = 1,
-  subsample = 0.8
-)
-
-set.seed(9876)
-tree.xgb <- train(
-  Loan ~ .,
-  data = train.df,
-  method = "xgbTree",
-  trControl = cntrl,
-  tuneGrid = xgbGrid,
-  metric = "ROC"
-)
-
-tree.xgb
-```
-
----
-
-### XGBoost Test Set Performance
-
-```{r}
-ensemble_xgb <- bind_cols(
-  predClass = predict(tree.xgb, test.df),
-  predProb  = predict(tree.xgb, test.df, type = "prob")$Yes,
-  Actual    = test.df$Loan,
-  model     = "XGBoost"
-)
-
-ensemble_xgb |> 
-  roc_auc(Actual, predProb)
-```
-
----
-
-### Variable Importance (XGBoost)
-
-```{r}
-varImp(tree.xgb)
-plot(varImp(tree.xgb))
-```
-
-> Note: XGBoost variable importance is based on **gain**, **cover**, or **frequency**, not simple split counts.
-
----
-
-## Final Ensemble Comparison 
-
-```{r}
-ensemble_results <- bind_rows(
-  ensemble_bag,
-  ensemble_rf,
-  ensemble_ada,
-  ensemble_gbm,
-  ensemble_xgb
-)
+ensemble_results |> 
+    group_by(model) |> 
+    roc_auc(Actual, predProb) |> 
+    arrange(-.estimate)
 ```
 
 ```{r}
 ensemble_results |> 
-  group_by(model) |> 
-  roc_auc(Actual, predProb) |> 
-  arrange(desc(.estimate))
+    group_by(model) |> 
+    roc_curve(Actual, predProb) |> 
+    autoplot()
 ```
 
 ```{r}
 ensemble_results |> 
-  group_by(model) |> 
-  roc_curve(Actual, predProb) |> 
-  autoplot()
+    group_by(model) |> 
+    lift_curve(Actual, predProb) |> 
+    autoplot()
 ```
-
-```{r}
-ensemble_results |> 
-  group_by(model) |> 
-  lift_curve(Actual, predProb) |> 
-  autoplot()
-```
-
-## Chapter Takeaways
-
-* Ensemble methods dominate single-tree performance
-* Bagging reduces variance
-* Random forests decorrelate trees
-* Boosting reduces bias
-* XGBoost adds regularization and optimization
-* Predictive power increases as interpretability decreases
-
