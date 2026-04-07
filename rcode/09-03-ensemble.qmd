@@ -1,5 +1,5 @@
 ---
-title: "ch09-02-ensembles"
+title: "ch09-03-ensembles"
 author: "Dr. Jeff Jacob"
 output: html_document
 ---

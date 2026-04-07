@@ -11,9 +11,7 @@ author: Dr. Jeff Jacob
 
 Reticulated python is the world's longest species of snake. reticulate is the package which brings in python in R, thus extending the reach of both languages. What is great about posit is that once the python environment is correctly set-up, we can use it within the R code chunk ('R'eticulated python). What is even more special is that we can use python natively as well!
 
-
-
-``` {r}
+```{r}
 library(reticulate)
 library(mlbadata)
 library(tidyverse)
@@ -22,36 +20,33 @@ library(nnet)
 library(fastDummies)
 ```
 
-
-```  {r}       
+```{r}
 # A virtual python environment has already been setup. We activate it here
 use_virtualenv("mlpyenv")
 ```
 
 First to use python natively:
 
-
-
-```{python}         
+```{python}
 4 + 5
 ```
 
-```{python}         
+```{python}
 print("Hello world! This is python")
 ```
 
-```{python}        
+```{python}
 2**3
 ```
 
-```{python}        
+```{python}
 #| eval: false
 # Exercise:
 # Compute 7 squared.
 # Then compute 2 raised to the power of 5.
 ```
 
-```{python}         
+```{python}
 fruits = ["apples", "grapes", "oranges", "melons"]
 
 j = "cheese"
@@ -59,7 +54,7 @@ for i in fruits:
   print(f"I like {i}. But I like {j} also.")
 ```
 
-```{python}         
+```{python}
 #| eval: false
 # Exercise:
 # Add one more fruit to the list.
@@ -71,27 +66,26 @@ for i in fruits:
 
 # `R` environment:
 
-```{r}         
+```{r}
 text <- "Hello there from R"
 print(text)
 ```
 
 # `Python` environment:
 
-```{python}         
+```{python}
 text = "Hello there from Python"
 print(text)
 ```
 
-
 # `R` and `Python` talking to each other:
 
-```{python}         
+```{python}
 # Getting python to hear from R
 print(r.text)
 ```
 
-```{r}         
+```{r}
 # Now R's turn to listen to python
 print(py$text)
 ```
@@ -107,14 +101,14 @@ print(py$text)
 
 Let's make numeric lists natively in Python.
 
-```{python}         
+```{python}
 a = list(range(1,101))
 print(a)
 min(a)
 max(a)
 ```
 
-```{python}         
+```{python}
 #| eval: false
 # Exercise:
 # Create a list from 1 to 50.
@@ -123,7 +117,7 @@ max(a)
 
 Let's say we want to add 10 to each element in the list.
 
-```{python}          
+```{python}
 b = []
 
 for i in a:
@@ -132,7 +126,7 @@ for i in a:
 print(b)
 ```
 
-```{python}         
+```{python}
 #| eval: false
 # Exercise:
 # Create a new empty list.
@@ -144,12 +138,12 @@ This makes working with numerical data slow in python.
 
 We can aslo import the object a into R and carry out the above calculation. To access python objects in R, we will use the accessor: py\$
 
-``` {r}        
+```{r}
 b_r = py$a + 10
 b_r
 ```
 
-```{r}         
+```{r}
 #| eval: false
 # Exercise:
 # Add 25 to the Python list a using R.
@@ -158,12 +152,12 @@ b_r
 
 We can also bring in b_r into python using the . operator: r.
 
-```{python}          
+```{python}
 max(r.b_r)
 sum(r.b_r)
 ```
 
-```{python}          
+```{python}
 #| eval: false
 # Exercise:
 # Compute the minimum value of r.b_r in Python.
@@ -175,23 +169,23 @@ Brief on Numerical Python
 
 While, we can not work in a vectorised manner in native python, we can also use an extremely powerful package, numpy for this. numpy is a core package at the heart of machine learning in python which converts lists into arrays and allows for vectorised operations in Python. Let us, very briefly, look at the workings of numpy
 
-```{python}          
+```{python}
 import numpy as np
 ```
 
 The default object on numpy is an n- dimensional array (a grid of values). The rank of an array is the number of dimension while the shape is a tuple giving the number of elements along each dimension.
 
-```{python}          
+```{python}
 a1 = np.array([3, 5, 7, 9])
 print(a1)
 np.ndim(a1)
 ```
 
-```{python}          
+```{python}
 a1.ndim
 ```
 
-```{python}          
+```{python}
 #| eval: false
 # Exercise:
 # Create a numpy array with five numbers.
@@ -200,17 +194,17 @@ a1.ndim
 
 Why does a1.ndim work? a1 is an object of the ndarray class and thus inherits all the methods.
 
-``` {python}         
+```{python}
 type(a1)
 ```
 
 To see the shape:
 
-``` {python}         
+```{python}
 a1.shape
 ```
 
-```{python}          
+```{python}
 #| eval: false
 # Exercise:
 # Create a new numpy array with three elements.
@@ -219,15 +213,15 @@ a1.shape
 
 It is a vector with 4 rows. numpy broadcasts objects like R
 
-```{python}          
+```{python}
 a1 + 10
 ```
 
-``` {python}         
+```{python}
 np.arange(1,101) + 10
 ```
 
-```{python}          
+```{python}
 #| eval: false
 # Exercise:
 # Use np.arange to create numbers from 1 to 20.
@@ -236,12 +230,12 @@ np.arange(1,101) + 10
 
 np.arange(start, stop, step) is generally used to create 1d arrays. We can also create equally spaced arrays using np.linspace(start, stop, number)
 
-```{python}          
+```{python}
 np.linspace(0,10,5)
 np.linspace(0,10,5).dtype
 ```
 
-``` {python}         
+```{python}
 #| eval: false
 # Exercise:
 # Create 4 equally spaced values between 0 and 8.
@@ -250,7 +244,7 @@ np.linspace(0,10,5).dtype
 
 In machine learning, we mainly work with tabular data (2 dimensions).
 
-``` {python}         
+```{python}
 a2 = np.array(
   [[2, 5, 6], 
   [10 , 3, 12], 
@@ -258,13 +252,13 @@ a2 = np.array(
   [3, 1, 7]])
 ```
 
-```{python}          
+```{python}
 print(a2)
 a2.ndim
 a2.shape
 ```
 
-```{python}          
+```{python}
 #| eval: false
 # Exercise:
 # Index the element in the second row and third column of a2.
@@ -272,18 +266,18 @@ a2.shape
 
 3d arrays:
 
-```{python}          
+```{python}
 a3 = np.array([[[1, 3, 4], [23, 12, 3], [1, 4, 5]],
 [[2, 4, 1], [34, 12, 9],[4, 1, 7]]])
 ```
 
-``` {python}         
+```{python}
 print(a3)
 a3.ndim
 a3.shape
 ```
 
-``` {python}         
+```{python}
 #| eval: false
 # Exercise:
 # Access the first element of the first row in the first layer.
@@ -291,35 +285,35 @@ a3.shape
 
 Reshaping arrays
 
-```{python}          
+```{python}
 p1 = np.random.randint(0, 256, 100)
 p1.shape
 ```
 
-```{python}          
+```{python}
 p2 = np.random.randint(0, 256, 100).reshape((10,10))
 p2.shape
 print(p2)
 ```
 
-``` {python}         
+```{python}
 p3 = p2/255
 print(p3)
 ```
 
-```{python}          
+```{python}
 #| eval: false
 # Exercise:
 # Confirm the maximum value of p3 is less than or equal to 1.
 ```
 
-``` {python}         
+```{python}
 p4 = p3.reshape(100,1)
 p4.shape
 p4[0:5]
 ```
 
-```{python}          
+```{python}
 #| eval: false
 # Exercise:
 # Reshape p3 into a (50, 2) array.
@@ -328,7 +322,7 @@ p4[0:5]
 
 Reshaping back
 
-```{python}          
+```{python}
 p5 = p4.reshape(10,10)
 p5.shape
 p5[0, 0:5]
@@ -336,43 +330,41 @@ p5[0, 0:5]
 
 numpy within R
 
-``` {r}         
+```{r}
 np <- import("numpy", convert = FALSE)
 np1 <- import("numpy", convert = TRUE)
 ```
 
-```{r}         
+```{r}
 x <- np1$arange(1, 9)
 x
 ```
 
-```{r}         
+```{r}
 x <- np$arange(1, 9)
 x
 ```
 
-``` {r}        
+```{r}
 #| eval: false
 # Exercise:
 # Use numpy from R to create values from 1 to 20.
 ```
 
-```{r}         
+```{r}
 p6 <- np$random$randint(0, 255, 100L)
 p6
 ```
 
-```{r}         
+```{r}
 p7 <- p6$reshape(10L, 10L)
 p7/255
 ```
 
-```{r}         
+```{r}
 #| eval: false
 # Exercise:
 # Normalize p7 so all values are between 0 and 1.
 ```
 
-__In the above code, `10L` means the integer 10. Otherwise, if we just type 10, python will read it as 10. (a float) and throw an error.__
-
-
+**In the above code, `10L` means the integer 10. Otherwise, if we just type 10, python will read it as 10. (a float) and throw an error.**
