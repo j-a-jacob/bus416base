@@ -257,3 +257,8 @@ test_yhat <-  test_yhat|>
 confusionMatrix(reference = test_y$MAX_SEV_IR, data = test_yhat$MAX_SEV_IR)
 
 ```
+
+```{python}
+a = [2, 3]
+a[0]
+```

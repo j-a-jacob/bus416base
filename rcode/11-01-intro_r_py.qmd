@@ -20,12 +20,27 @@ library(nnet)
 library(fastDummies)
 ```
 
+We will install a python virtual environment
+
+```{r}
+library(reticulate)
+virtualenv_create("mlpyenv")
+use_virtualenv("mlpyenv", required = TRUE)
+py_install(c("numpy", "pandas", "scikit-learn", "matplotlib"), envname = "mlpyenv")
+```
+
+Next time you start a new session and want to use this environment, simply type the following code:
+
 ```{r}
 # A virtual python environment has already been setup. We activate it here
 use_virtualenv("mlpyenv")
 ```
 
 First to use python natively:
+
+```{r}
+
+```
 
 ```{python}
 4 + 5
@@ -219,6 +234,8 @@ a1 + 10
 
 ```{python}
 np.arange(1,101) + 10
+b = np.arange(1,101) + 10
+b.ndim
 ```
 
 ```{python}
@@ -262,6 +279,7 @@ a2.shape
 #| eval: false
 # Exercise:
 # Index the element in the second row and third column of a2.
+a2[1,2]
 ```
 
 3d arrays:

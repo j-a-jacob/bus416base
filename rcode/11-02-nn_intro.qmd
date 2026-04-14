@@ -169,6 +169,14 @@ There is more detailed information in caret.
 # Manually compute the accuracy from the confusion matrix.
 ```
 
+### Aside
+
+Logistic activation function
+
+```{r}
+
+```
+
 ### Building a neural network in caret
 
 We can also, very easily build a single-layer neural network in `caret`. Note that while `caret` contains wrapper function for several neural networks, the most commonly used algorithm for classification is the `nnet` package, which *only allows one hidden layer*. ***For more elaborate networks, we will default to MLPClassifier in sklearn.***
